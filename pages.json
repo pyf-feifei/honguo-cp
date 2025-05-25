@@ -1,0 +1,110 @@
+{
+  "pages": [
+    {
+      "path": "src/pages/index/index",
+      "style": {
+        "navigationBarTitleText": "红果短剧",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "src/pages/drama/detail",
+      "style": {
+        "navigationBarTitleText": "短剧详情"
+      }
+    },
+    {
+      "path": "src/pages/drama/player",
+      "style": {
+        "navigationBarTitleText": "播放",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "src/pages/follow/index",
+      "style": {
+        "navigationBarTitleText": "追剧"
+      }
+    },
+    {
+      "path": "src/pages/welfare/index",
+      "style": {
+        "navigationBarTitleText": "福利"
+      }
+    },
+    {
+      "path": "src/pages/theater/index",
+      "style": {
+        "navigationBarTitleText": "剧场"
+      }
+    },
+    {
+      "path": "src/pages/user/index",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "src/pages/user/favorite",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "src/pages/user/history",
+      "style": {
+        "navigationBarTitleText": "观看历史"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "红果短剧",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#ff4d4f",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "src/pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.svg",
+        "selectedIconPath": "static/tabbar/home-active.svg"
+      },
+      {
+        "pagePath": "src/pages/theater/index",
+        "text": "剧场",
+        "iconPath": "static/tabbar/theater.svg",
+        "selectedIconPath": "static/tabbar/theater-active.svg"
+      },
+      {
+        "pagePath": "src/pages/welfare/index",
+        "text": "福利",
+        "iconPath": "static/tabbar/welfare.svg",
+        "selectedIconPath": "static/tabbar/welfare-active.svg"
+      },
+      {
+        "pagePath": "src/pages/follow/index",
+        "text": "追剧",
+        "iconPath": "static/tabbar/follow.svg",
+        "selectedIconPath": "static/tabbar/follow-active.svg"
+      },
+      {
+        "pagePath": "src/pages/user/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/user.svg",
+        "selectedIconPath": "static/tabbar/user-active.svg"
+      }
+    ]
+  },
+  "uniIdRouter": {},
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+    }
+  }
+}
