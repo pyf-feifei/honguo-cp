@@ -12,22 +12,33 @@
         {{ item.name }}
       </view>
     </scroll-view>
-    
+
     <!-- 书籍列表 -->
     <view v-for="book in filteredBooks" :key="book.bookId" class="book-card">
-      <image :src="book.coverWap" class="cover" mode="aspectFill" />
+      <view class="cover-container">
+        <image :src="book.coverWap" class="cover" mode="aspectFill" />
+        <text class="chapter-count" v-if="book.totalChapterNum"
+          >全{{ book.totalChapterNum }}集</text
+        >
+      </view>
       <view class="info">
         <view class="title-row">
           <text class="book-title">{{ book.bookName }}</text>
-          <text class="status" v-if="book.statusDesc">{{ book.statusDesc }}</text>
+          <text class="status" v-if="book.statusDesc">{{
+            book.statusDesc
+          }}</text>
         </view>
-        <text class="follow"><text class="follow-num">{{ book.followCount }}</text>人<i class="tag-hot">在追</i></text>
+        <text class="follow"
+          ><text class="follow-num">{{ book.followCount }}</text
+          >人<i class="tag-hot">在追</i></text
+        >
         <view class="tags">
           <text
             v-for="typeId in book.bookTypeThree"
             :key="typeId"
             class="tag"
-          >{{ getTypeName(typeId) }}</text>
+            >{{ getTypeName(typeId) }}</text
+          >
         </view>
         <text class="intro">{{ book.introduction }}</text>
       </view>
@@ -58,7 +69,10 @@ export default {
   },
   async created() {
     try {
-      const [books, bookType] = await Promise.all([fetchBooks(), fetchBookType()])
+      const [books, bookType] = await Promise.all([
+        fetchBooks(),
+        fetchBookType(),
+      ])
       this.books = books
       this.bookTypeMap = Object.fromEntries(bookType.map((t) => [t.id, t.name]))
       this.filters = [{ id: 0, name: '全部' }, ...bookType]
@@ -121,12 +135,25 @@ export default {
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
+.cover-container {
+  position: relative;
+  margin: 16rpx;
+}
 .cover {
   width: 140rpx;
   height: 186rpx;
   border-radius: 8rpx;
-  margin: 16rpx;
   flex-shrink: 0;
+}
+.chapter-count {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 18rpx;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 2rpx 6rpx;
+  border-radius: 0 0 8rpx 0;
 }
 .info {
   flex: 1;
