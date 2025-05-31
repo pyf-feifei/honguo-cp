@@ -1,5 +1,16 @@
 <template>
   <view class="container">
+    <!-- 顶部搜索框 -->
+    <view class="search-box">
+      <u-search
+        v-model="searchKeyword"
+        placeholder="搜索短剧"
+        :show-action="false"
+        @search="onSearch"
+        @custom="onSearch"
+      ></u-search>
+    </view>
+
     <!-- 顶部筛选项，使用自定义样式替代u-tabs -->
     <scroll-view scroll-x class="filters" show-scrollbar="false">
       <view
@@ -14,7 +25,12 @@
     </scroll-view>
 
     <!-- 书籍列表 -->
-    <view v-for="book in filteredBooks" :key="book.bookId" class="book-card">
+    <view
+      v-for="book in filteredBooks"
+      :key="book.bookId"
+      class="book-card"
+      @click="goToPlayer(book)"
+    >
       <view class="cover-container">
         <image :src="book.coverWap" class="cover" mode="aspectFill" />
         <text class="chapter-count" v-if="book.totalChapterNum"
@@ -57,14 +73,31 @@ export default {
       filters: [{ id: 0, name: '全部' }],
       activeFilter: 0,
       activeFilterIndex: 0,
+      searchKeyword: '', // 添加搜索关键词
     }
   },
   computed: {
     filteredBooks() {
-      if (this.activeFilter === 0) return this.books
-      return this.books.filter((book) =>
-        book.bookTypeThree.includes(this.activeFilter)
-      )
+      let result = this.books
+
+      // 先按关键词筛选
+      if (this.searchKeyword) {
+        const keyword = this.searchKeyword.toLowerCase()
+        result = result.filter(
+          (book) =>
+            book.bookName.toLowerCase().includes(keyword) ||
+            book.introduction.toLowerCase().includes(keyword)
+        )
+      }
+
+      // 再按分类筛选
+      if (this.activeFilter !== 0) {
+        result = result.filter((book) =>
+          book.bookTypeThree.includes(this.activeFilter)
+        )
+      }
+
+      return result
     },
   },
   async created() {
@@ -91,6 +124,17 @@ export default {
         this.activeFilter = this.filters[index].id
       }
     },
+    onSearch() {
+      // 搜索功能实现，这里已经通过计算属性自动筛选了
+      console.log('搜索关键词:', this.searchKeyword)
+    },
+    goToPlayer(book) {
+      uni.navigateTo({
+        url: `/src/pages/theater/player?bookName=${encodeURIComponent(
+          book.bookName
+        )}&introduction=${encodeURIComponent(book.introduction)}`,
+      })
+    },
   },
 }
 </script>
@@ -98,6 +142,9 @@ export default {
 <style lang="scss">
 .container {
   padding: 20rpx;
+}
+.search-box {
+  margin-bottom: 20rpx;
 }
 .filters {
   display: flex;

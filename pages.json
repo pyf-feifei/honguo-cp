@@ -14,6 +14,12 @@
       }
     },
     {
+      "path": "src/pages/theater/player",
+      "style": {
+        "navigationBarTitleText": "播放"
+      }
+    },
+    {
       "path": "src/pages/welfare/index",
       "style": {
         "navigationBarTitleText": "福利"
