@@ -31,80 +31,88 @@
       object-fit="contain"
       class="video"
       @ended="onVideoEnd"
-    />
-
-    <!-- 播放控制层 -->
-    <view class="video-controls" v-if="showControls" @click="toggleControls">
-      <view class="play-btn" @click.stop="togglePlay">
-        <text
-          class="iconfont"
-          :class="isPlaying ? 'icon-pause' : 'icon-play'"
-        ></text>
-      </view>
-    </view>
-
-    <!-- 右侧互动按钮 -->
-    <view class="side-actions">
-      <view class="action-item">
-        <view class="action-icon like" @click="handleLike">
-          <image
-            :src="
-              isLiked ? '/static/theater/loved.svg' : '/static/theater/love.svg'
-            "
-            class="action-image"
-          ></image>
-        </view>
-        <text class="action-count">394</text>
-      </view>
-      <view class="action-item">
-        <view class="action-icon star" @click="handleCollect">
-          <image
-            src="/static/theater/collected.svg"
-            class="action-image"
-          ></image>
-        </view>
-        <text class="action-text">追剧</text>
-      </view>
-      <view class="action-item">
-        <view class="action-icon comment" @click="handleComment">
-          <image src="/static/theater/message.svg" class="action-image"></image>
-        </view>
-        <text class="action-count">8</text>
-      </view>
-      <view class="action-item">
-        <view class="action-icon share" @click="handleShare">
-          <image
-            src="/static/theater/share-white-full.png"
-            class="action-image"
-          ></image>
-        </view>
-        <text class="action-text">分享</text>
-      </view>
-    </view>
-
-    <!-- 底部信息 -->
-    <view class="bottom-info">
-      <view class="info">
-        <text class="tag">永久免费</text>
-        <text class="title">{{ bookName }}</text>
-        <view class="desc-container">
-          <text class="desc">{{
-            introduction ||
-            '林忧，原本拥有一个精彩的人生；研发出了跨时代的科技量子AI...'
-          }}</text>
-          <text class="expand">展开</text>
-        </view>
-      </view>
-      <view class="episode-nav">
-        <text class="current-episode"
-          >第{{ currentIndex + 1 }}集：全{{ vodList.length }}集</text
-        >
-        <view class="choose-btn" @click="showPicker = true">选集</view>
-      </view>
-    </view>
+    >
+      <!-- 播放控制层 -->
+      <cover-view
+        class="video-controls"
+        v-if="showControls"
+        @click="toggleControls"
+      >
+        <cover-view class="play-btn" @click.stop="togglePlay">
+          <cover-view
+            class="iconfont"
+            :class="isPlaying ? 'icon-pause' : 'icon-play'"
+          ></cover-view>
+        </cover-view>
+      </cover-view>
+      <!-- 右侧互动按钮 -->
+      <cover-view class="side-actions">
+        <cover-view class="action-item">
+          <cover-view class="action-icon like" @click="handleLike">
+            <cover-image
+              :src="
+                isLiked
+                  ? '/static/theater/loved.png'
+                  : '/static/theater/love.png'
+              "
+              class="action-image"
+            ></cover-image>
+          </cover-view>
+          <cover-view class="action-count">394</cover-view>
+        </cover-view>
+        <cover-view class="action-item">
+          <cover-view class="action-icon star" @click="handleCollect">
+            <cover-image
+              src="/static/theater/collected.png"
+              class="action-image"
+            ></cover-image>
+          </cover-view>
+          <cover-view class="action-text">追剧</cover-view>
+        </cover-view>
+        <cover-view class="action-item">
+          <cover-view class="action-icon comment" @click="handleComment">
+            <cover-image
+              src="/static/theater/message.png"
+              class="action-image"
+            ></cover-image>
+          </cover-view>
+          <cover-view class="action-count">8</cover-view>
+        </cover-view>
+        <cover-view class="action-item">
+          <cover-view class="action-icon share" @click="handleShare">
+            <cover-image
+              src="/static/theater/share-white-full.png"
+              class="action-image"
+            ></cover-image>
+          </cover-view>
+          <cover-view class="action-text">分享</cover-view>
+        </cover-view>
+      </cover-view>
+      <!-- 底部信息 -->
+      <cover-view class="bottom-info">
+        <cover-view class="info">
+          <cover-view class="tag">永久免费</cover-view>
+          <cover-view class="title">{{ bookName }}</cover-view>
+          <cover-view class="desc-container">
+            <cover-view class="desc">{{
+              introduction || '暂无描述'
+            }}</cover-view>
+            <cover-view class="expand">展开</cover-view>
+          </cover-view>
+        </cover-view>
+        <cover-view class="episode-nav">
+          <cover-view class="current-episode"
+            >第{{ currentIndex + 1 }}集：全{{ vodList.length }}集</cover-view
+          >
+          <cover-view class="choose-btn" @click="showPicker = true"
+            >选集</cover-view
+          >
+        </cover-view>
+      </cover-view>
+    </video>
 
     <!-- 选集弹窗 -->
-    <u-popup v-model="showPicker" mode="bottom" border-radius="20" height="60%">
+    <u-popup v-model:show="showPicker" mode="bottom" round="16">
       <view class="episode-popup">
         <view class="popup-header">
           <text class="popup-title">选集</text>
@@ -136,9 +144,9 @@ const bookName = ref('')
 const introduction = ref('')
 const vodList = ref([])
 const currentIndex = ref(0)
-const showPicker = ref(false)
+const showPicker = ref(true)
 const playRate = ref(1.0)
-const isPlaying = ref(true)
+const isPlaying = ref(false)
 const showControls = ref(false)
 const videoContext = ref(null)
 const isLiked = ref(false)
@@ -349,21 +357,19 @@ const handleShare = () => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 50rpx;
+      margin-bottom: 16rpx;
 
       .action-icon {
         width: 90rpx;
         height: 90rpx;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.3);
         display: flex;
         justify-content: center;
         align-items: center;
         margin-bottom: 10rpx;
 
         .action-image {
-          width: 50rpx;
-          height: 50rpx;
+          width: 64rpx;
+          height: 64rpx;
         }
       }
 
@@ -453,7 +459,7 @@ const handleShare = () => {
 
   /* 选集弹窗 */
   .episode-popup {
-    height: 100%;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
 
@@ -476,25 +482,24 @@ const handleShare = () => {
     }
 
     .episode-scroll {
-      flex: 1;
-      height: 0;
-
+      max-height: 50vh;
       .episode-list {
-        display: flex;
-        flex-wrap: wrap;
+        // display: flex;
+        // flex-wrap: wrap;
         padding: 30rpx;
-
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        grid-gap: 16rpx;
         .episode-item {
-          width: 80rpx;
-          height: 80rpx;
-          line-height: 80rpx;
           text-align: center;
-          margin: 10rpx;
           border-radius: 16rpx;
           background: #f5f5f5;
           color: #333;
           font-size: 28rpx;
-
+          aspect-ratio: 1 / 1; // 添加这一行，设置宽高比为1:1
+          display: flex;
+          align-items: center;
+          justify-content: center;
           &.active {
             background: #07c160;
             color: #fff;
