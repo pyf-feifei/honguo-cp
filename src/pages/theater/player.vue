@@ -6,9 +6,9 @@
   >
     <!-- 顶部栏 -->
     <view class="top-bar">
-      <view class="back-icon" @click="uni.navigateBack()">
+      <!-- <view class="back-icon" @click="uni.navigateBack()">
         <u-icon name="arrow-left" color="#FFFFFF" size="24"></u-icon>
-      </view>
+      </view> -->
       <text class="episode">第{{ currentIndex + 1 }}集</text>
       <view class="rate-container" @click="changeRate">
         <text class="rate">{{ playRate }}x</text>
@@ -251,9 +251,7 @@ const handleShare = () => {
 .player-container {
   position: relative;
   width: 100vw;
-  height: calc(
-    100vh - var(--window-top)
-  ); // 减去状态栏和导航栏的总高度
+  height: calc(100vh - var(--window-top)); // 减去状态栏和导航栏的总高度
   background: #000;
   overflow: hidden;
 
