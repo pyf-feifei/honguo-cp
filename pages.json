@@ -52,32 +52,32 @@
       {
         "pagePath": "src/pages/index/index",
         "text": "首页",
-        "iconPath": "static/tabbar/home.svg",
-        "selectedIconPath": "static/tabbar/home-active.svg"
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
       },
       {
         "pagePath": "src/pages/theater/index",
         "text": "剧场",
-        "iconPath": "static/tabbar/theater.svg",
-        "selectedIconPath": "static/tabbar/theater-active.svg"
+        "iconPath": "static/tabbar/theater.png",
+        "selectedIconPath": "static/tabbar/theater-active.png"
       },
       {
         "pagePath": "src/pages/welfare/index",
         "text": "福利",
-        "iconPath": "static/tabbar/welfare.svg",
-        "selectedIconPath": "static/tabbar/welfare-active.svg"
+        "iconPath": "static/tabbar/welfare.png",
+        "selectedIconPath": "static/tabbar/welfare-active.png"
       },
       {
         "pagePath": "src/pages/follow/index",
         "text": "追剧",
-        "iconPath": "static/tabbar/follow.svg",
-        "selectedIconPath": "static/tabbar/follow-active.svg"
+        "iconPath": "static/tabbar/follow.png",
+        "selectedIconPath": "static/tabbar/follow-active.png"
       },
       {
         "pagePath": "src/pages/user/index",
         "text": "我的",
-        "iconPath": "static/tabbar/user.svg",
-        "selectedIconPath": "static/tabbar/user-active.svg"
+        "iconPath": "static/tabbar/user.png",
+        "selectedIconPath": "static/tabbar/user-active.png"
       }
     ]
   },
