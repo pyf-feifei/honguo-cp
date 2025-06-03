@@ -12,16 +12,20 @@
       :videoId="'myVideo'"
       :autoplay="true"
       :playback-rate="playRate"
-      :show-center-play-btn="true"
       :enable-progress-gesture="true"
+      :show-progress="true"
       :show-loading="false"
-      :enable-play-gesture="true"
       :vslide-gesture="true"
       :vslide-gesture-in-fullscreen="true"
       @ended="onVideoEnd"
       @play="onVideoPlay"
       @pause="onVideoPause"
-      :controls="false"
+      :controls="true"
+      :show-play-btn="false"
+      :show-center-play-btn="false"
+      play-btn-position="center"
+      :enable-play-gesture="true"
+      :play-strategy="3"
     >
       <!-- 顶部栏 -->
       <cover-view class="top-bar">
