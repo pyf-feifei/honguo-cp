@@ -4,34 +4,32 @@
     @touchstart="onTouchStart"
     @touchend="onTouchEnd"
   >
-    <!-- 顶部栏 -->
-    <view class="top-bar">
-      <!-- <view class="back-icon" @click="uni.navigateBack()">
-        <u-icon name="arrow-left" color="#FFFFFF" size="24"></u-icon>
-      </view> -->
-      <text class="episode">第{{ currentIndex + 1 }}集</text>
-      <view class="rate-container" @click="changeRate">
-        <text class="rate">{{ playRate }}x</text>
-      </view>
-    </view>
-
     <!-- 视频播放器 -->
-    <video
-      id="myVideo"
+    <VideoPlayer
+      v-if="vodList.length"
+      ref="videoPlayerRef"
       :src="vodList[currentIndex]?.url"
-      :controls="false"
+      :videoId="'myVideo'"
       :autoplay="true"
+      :playback-rate="playRate"
       :show-center-play-btn="true"
       :enable-progress-gesture="true"
-      :playback-rate="playRate"
-      :show-loading="true"
+      :show-loading="false"
       :enable-play-gesture="true"
       :vslide-gesture="true"
       :vslide-gesture-in-fullscreen="true"
-      object-fit="contain"
-      class="video"
       @ended="onVideoEnd"
+      @play="onVideoPlay"
+      @pause="onVideoPause"
+      :controls="false"
     >
+      <!-- 顶部栏 -->
+      <cover-view class="top-bar">
+        <cover-view class="episode">第{{ currentIndex + 1 }}集</cover-view>
+        <cover-view class="rate-container" @click="changeRate">
+          <cover-view class="rate">{{ playRate }}x</cover-view>
+        </cover-view>
+      </cover-view>
       <!-- 播放控制层 -->
       <cover-view
         class="video-controls"
@@ -104,12 +102,20 @@
           <cover-view class="current-episode"
             >第{{ currentIndex + 1 }}集：全{{ vodList.length }}集</cover-view
           >
-          <cover-view class="choose-btn" @click="showPicker = true"
-            >选集</cover-view
-          >
+          <cover-view class="choose-btn" @click="showPicker = true">
+            <cover-view>选集</cover-view>
+          </cover-view>
         </cover-view>
       </cover-view>
-    </video>
+    </VideoPlayer>
+
+    <!-- 底部栏 -->
+    <view class="bottom-bar">
+      <view class="bottom-logo">
+        <image src="/static/theater/logo.png" mode="aspectFit"></image>
+        <text>520U剧场</text>
+      </view>
+    </view>
 
     <!-- 选集弹窗 -->
     <u-popup v-model:show="showPicker" mode="bottom" round="16">
@@ -138,6 +144,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import VideoPlayer from '@/src/components/VideoPlayer.vue'
 
 // 响应式状态
 const bookName = ref('')
@@ -148,19 +155,14 @@ const showPicker = ref(false)
 const playRate = ref(1.0)
 const isPlaying = ref(false)
 const showControls = ref(false)
-const videoContext = ref(null)
+const videoPlayerRef = ref(null)
 const isLiked = ref(false)
 
 // 获取参数
 onLoad((query) => {
-  bookName.value = query.bookName
-  introduction.value = query.introduction
+  bookName.value = decodeURIComponent(query.bookName)
+  introduction.value = decodeURIComponent(query.introduction)
   fetchVodList()
-})
-
-onMounted(() => {
-  // 初始化视频上下文
-  videoContext.value = uni.createVideoContext('myVideo')
 })
 
 // 请求API
@@ -198,9 +200,9 @@ const changeRate = () => {
 // 播放控制
 const togglePlay = () => {
   if (isPlaying.value) {
-    videoContext.value.pause()
+    videoPlayerRef.value.pause()
   } else {
-    videoContext.value.play()
+    videoPlayerRef.value.play()
   }
   isPlaying.value = !isPlaying.value
 }
@@ -253,13 +255,25 @@ const handleComment = () => {
 const handleShare = () => {
   console.log('点击了分享按钮')
 }
+
+// 视频播放事件处理
+const onVideoPlay = () => {
+  isPlaying.value = true
+}
+
+// 视频暂停事件处理
+const onVideoPause = () => {
+  isPlaying.value = false
+}
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .player-container {
   position: relative;
   width: 100vw;
-  height: calc(100vh - var(--window-top)); // 减去状态栏和导航栏的总高度
+  height: calc(
+    100vh - var(--window-top) - 100rpx
+  ); /* 减去状态栏、导航栏和底部栏的总高度 */
   background: #000;
   overflow: hidden;
 
@@ -396,13 +410,17 @@ const handleShare = () => {
       margin-bottom: 30rpx;
 
       .tag {
-        display: inline-block;
         font-size: 24rpx;
         color: #fff;
         background: #07c160;
         padding: 4rpx 12rpx;
         border-radius: 6rpx;
         margin-bottom: 16rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        text-align: center; /* 添加这一行 */
       }
 
       .title {
@@ -453,6 +471,12 @@ const handleShare = () => {
         border-radius: 30rpx;
         padding: 12rpx 30rpx;
         font-size: 28rpx;
+        text-align: center;
+        /* 添加以下属性实现文字垂直居中 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
       }
     }
   }
@@ -527,5 +551,38 @@ const handleShare = () => {
 }
 .icon-pause:before {
   content: '\e67a';
+}
+
+/* 底部栏样式 */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100rpx; /* 底部栏高度 */
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 添加这一行，使内容水平居中 */
+  padding: 0 30rpx;
+  box-sizing: border-box;
+  z-index: 10;
+
+  .bottom-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* 添加这一行，使内容水平居中 */
+
+    image {
+      width: 48rpx;
+      height: 48rpx;
+      margin-right: 10rpx;
+    }
+
+    text {
+      color: #fff;
+      font-size: 28rpx;
+    }
+  }
 }
 </style>

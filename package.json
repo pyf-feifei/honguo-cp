@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "hls.js": "^1.6.5",
     "pinia": "^3.0.2",
     "uview-plus": "^3.4.31"
   }
