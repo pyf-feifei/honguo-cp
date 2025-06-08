@@ -2,48 +2,28 @@
   <view class="video-player-container">
     <!-- H5端 -->
     <template v-if="platform === 'h5'">
-      <video
-        ref="h5VideoRef"
-        :src="src"
-        v-bind="attrs"
-        class="video-player"
-      >
+      <video ref="h5VideoRef" :src="src" v-bind="attrs" class="video-player">
         <slot></slot>
       </video>
     </template>
 
     <!-- APP端 -->
     <template v-else-if="platform === 'app-plus'">
-      <video
-        :id="videoId"
-        :src="src"
-        v-bind="attrs"
-        class="video-player"
-      >
+      <video :id="videoId" :src="src" v-bind="attrs" class="video-player">
         <slot></slot>
       </video>
     </template>
 
     <!-- 微信小程序端 -->
     <template v-else-if="platform === 'mp-weixin'">
-      <video
-        :id="videoId"
-        :src="src"
-        v-bind="attrs"
-        class="video-player"
-      >
+      <video :id="videoId" :src="src" v-bind="attrs" class="video-player">
         <slot></slot>
       </video>
     </template>
 
     <!-- 其他平台 -->
     <template v-else>
-      <video
-        :id="videoId"
-        :src="src"
-        v-bind="attrs"
-        class="video-player"
-      >
+      <video :id="videoId" :src="src" v-bind="attrs" class="video-player">
         <slot></slot>
       </video>
     </template>
@@ -152,6 +132,7 @@ defineExpose({
     height: 100%;
     background: #000;
     object-fit: contain;
+    position: relative;
   }
 }
 </style>

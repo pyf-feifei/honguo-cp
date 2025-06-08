@@ -1,592 +1,572 @@
 <template>
-  <view
-    class="player-container"
-    @touchstart="onTouchStart"
-    @touchend="onTouchEnd"
-  >
-    <!-- 视频播放器 -->
-    <VideoPlayer
-      v-if="vodList.length"
-      ref="videoPlayerRef"
-      :src="vodList[currentIndex]?.url"
-      :videoId="'myVideo'"
-      :autoplay="true"
-      :playback-rate="playRate"
-      :enable-progress-gesture="true"
-      :show-progress="true"
-      :show-loading="false"
-      :vslide-gesture="true"
-      :vslide-gesture-in-fullscreen="true"
-      @ended="onVideoEnd"
-      @play="onVideoPlay"
-      @pause="onVideoPause"
-      :controls="true"
-      :show-play-btn="false"
-      :show-center-play-btn="false"
-      play-btn-position="center"
-      :enable-play-gesture="true"
-      :play-strategy="3"
+  <view class="player-page-container">
+    <swiper
+      v-if="displayVodList.length > 0"
+      class="video-swiper"
+      :current="swiperCurrentIndex"
+      :vertical="true"
+      :circular="false"
+      @change="onSwiperChange"
+      @animationfinish="onSwiperAnimationFinish"
     >
-      <!-- 顶部栏 -->
-      <cover-view class="top-bar">
-        <cover-view class="episode">第{{ currentIndex + 1 }}集</cover-view>
-        <cover-view class="rate-container" @click="changeRate">
-          <cover-view class="rate">{{ playRate }}x</cover-view>
-        </cover-view>
-      </cover-view>
-      <!-- 播放控制层 -->
-      <cover-view
-        class="video-controls"
-        v-if="showControls"
-        @click="toggleControls"
+      <swiper-item
+        v-for="(item, index) in displayVodList"
+        :key="item.id || item.url || index"
+        class="swiper-item-container"
       >
-        <cover-view class="play-btn" @click.stop="togglePlay">
-          <cover-view
-            class="iconfont"
-            :class="isPlaying ? 'icon-pause' : 'icon-play'"
-          ></cover-view>
-        </cover-view>
-      </cover-view>
-      <!-- 右侧互动按钮 -->
-      <cover-view class="side-actions">
-        <cover-view class="action-item">
-          <cover-view class="action-icon like" @click="handleLike">
-            <cover-image
-              :src="
-                isLiked
-                  ? '/static/theater/loved.png'
-                  : '/static/theater/love.png'
-              "
-              class="action-image"
-            ></cover-image>
-          </cover-view>
-          <cover-view class="action-count">394</cover-view>
-        </cover-view>
-        <cover-view class="action-item">
-          <cover-view class="action-icon star" @click="handleCollect">
-            <cover-image
-              src="/static/theater/collected.png"
-              class="action-image"
-            ></cover-image>
-          </cover-view>
-          <cover-view class="action-text">追剧</cover-view>
-        </cover-view>
-        <cover-view class="action-item">
-          <cover-view class="action-icon comment" @click="handleComment">
-            <cover-image
-              src="/static/theater/message.png"
-              class="action-image"
-            ></cover-image>
-          </cover-view>
-          <cover-view class="action-count">8</cover-view>
-        </cover-view>
-        <cover-view class="action-item">
-          <cover-view class="action-icon share" @click="handleShare">
-            <cover-image
-              src="/static/theater/share-white-full.png"
-              class="action-image"
-            ></cover-image>
-          </cover-view>
-          <cover-view class="action-text">分享</cover-view>
-        </cover-view>
-      </cover-view>
-      <!-- 底部信息 -->
-      <cover-view class="bottom-info">
-        <cover-view class="info">
-          <cover-view class="tag">永久免费</cover-view>
-          <cover-view class="title">{{ bookName }}</cover-view>
-          <cover-view class="desc-container">
-            <cover-view class="desc">{{
-              introduction || '暂无描述'
-            }}</cover-view>
-            <cover-view class="expand">展开</cover-view>
-          </cover-view>
-        </cover-view>
-        <cover-view class="episode-nav">
-          <cover-view class="current-episode"
-            >第{{ currentIndex + 1 }}集：全{{ vodList.length }}集</cover-view
+        <view class="video-wrapper">
+          <!-- 封面图 -->
+          <image
+            v-if="!item.playing && item.vod_pic && item.showCover"
+            :src="item.vod_pic"
+            class="video-cover"
+            mode="aspectFill"
+            @click="() => manualPlay(index)"
+          />
+          <!-- 播放按钮 -->
+
+          <VideoPlayer
+            :ref="(el) => (videoPlayerRefs[item.id] = el)"
+            :src="item.url"
+            :video-id="item.id"
+            :autoplay="false"
+            :controls="true"
+            :show-play-btn="true"
+            :enable-play-gesture="treu"
+            :show-center-play-btn="true"
+            :show-fullscreen-btn="false"
+            :enable-progress-gesture="false"
+            :object-fit="'contain'"
+            :poster="item.vod_pic"
+            :play-strategy="2"
+            :show-loading="false"
+            @play="() => onVideoPlay(item.originalIndex)"
+            @pause="() => onVideoPause(item.originalIndex)"
+            @ended="() => onVideoEnded(item.originalIndex)"
+            @error="(e) => onVideoError(item.originalIndex, e)"
+            @loadedmetadata="() => onLoadedMetadata(item.originalIndex)"
+            class="video-instance"
           >
-          <cover-view class="choose-btn" @click="showPicker = true">
-            <cover-view>选集</cover-view>
-          </cover-view>
-        </cover-view>
-      </cover-view>
-    </VideoPlayer>
-
-    <!-- 底部栏 -->
-    <view class="bottom-bar">
-      <view class="bottom-logo">
-        <image src="/static/theater/logo.png" mode="aspectFit"></image>
-        <text>520U剧场</text>
-      </view>
-    </view>
-
-    <!-- 选集弹窗 -->
-    <u-popup v-model:show="showPicker" mode="bottom" round="16">
-      <view class="episode-popup">
-        <view class="popup-header">
-          <text class="popup-title">选集</text>
-          <text class="popup-close" @click="showPicker = false">×</text>
-        </view>
-        <scroll-view scroll-y class="episode-scroll">
-          <view class="episode-list">
-            <view
-              v-for="(item, idx) in vodList"
-              :key="idx"
-              :class="['episode-item', { active: idx === currentIndex }]"
-              @click="changeEpisode(idx)"
+            <cover-view
+              v-if="!item.playing && !item.loading"
+              class="play-button-overlay"
+              @click="() => manualPlay(index)"
             >
-              {{ idx + 1 }}
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-    </u-popup>
+              <cover-image
+                src="/static/theater/play.png"
+                class="play-icon"
+              ></cover-image>
+            </cover-view>
+          </VideoPlayer>
+          <!-- <cover-view class="video-overlay-content">
+              <cover-view class="top-info">
+                <cover-view class="episode-name">{{
+                  item.title || `第 ${item.originalIndex + 1} 集`
+                }}</cover-view>
+              </cover-view>
+              <cover-view class="bottom-info">
+                <cover-view class="video-title">{{ bookName }}</cover-view>
+                <cover-view class="video-description">{{
+                  item.description || introduction || '暂无简介'
+                }}</cover-view>
+              </cover-view>
+            </cover-view> -->
+          <cover-view v-if="item.loading" class="loading-indicator">
+            <cover-view class="loader"></cover-view>
+          </cover-view>
+        </view>
+      </swiper-item>
+    </swiper>
+    <view
+      v-else-if="isLoadingVodList && fullVodList.length === 0"
+      class="loading-container"
+    >
+      <text>加载中...</text>
+    </view>
+    <view
+      v-else-if="!isLoadingVodList && fullVodList.length === 0"
+      class="empty-container"
+    >
+      <text>暂无视频资源</text>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import VideoPlayer from '@/src/components/VideoPlayer.vue'
 
-// 响应式状态
 const bookName = ref('')
 const introduction = ref('')
-const vodList = ref([])
-const currentIndex = ref(0)
-const showPicker = ref(false)
-const playRate = ref(1.0)
-const isPlaying = ref(false)
-const showControls = ref(false)
-const videoPlayerRef = ref(null)
-const isLiked = ref(false)
+const fullVodList = ref([]) // 存储从API获取的完整视频列表
+const displayVodList = ref([]) // 当前在swiper中渲染的视频列表
+const swiperCurrentIndex = ref(0) // Swiper的当前视图索引 (相对于displayVodList)
+const activeVideoOriginalIndex = ref(0) // 实际播放视频在fullVodList中的索引
+const videoPlayerRefs = ref({})
+const isLoadingVodList = ref(true)
+const isLoadingMore = ref(false)
 
-// 获取参数
+const ITEMS_PER_LOAD = 3 // 每次加载/预加载的视频数量
+const PRELOAD_THRESHOLD = 1 // 滑动到距离底部多少个时开始预加载下一批
+
+// onLoad 获取页面参数
 onLoad((query) => {
-  bookName.value = decodeURIComponent(query.bookName)
-  introduction.value = decodeURIComponent(query.introduction)
+  bookName.value = query.bookName
+    ? decodeURIComponent(query.bookName)
+    : '未知剧名'
+  introduction.value = query.introduction
+    ? decodeURIComponent(query.introduction)
+    : ''
   fetchVodList()
 })
 
-// 请求API
 const fetchVodList = async () => {
-  const res = await uni.request({
-    url: `https://libretv.is-an.org/proxy/https://www.iqiyizyapi.com/api.php/provide/vod?ac=videolist&wd=${encodeURIComponent(
-      bookName.value
-    )}`,
-    method: 'GET',
-  })
-  if (res.data?.list?.length) {
-    // 解析分集
-    const vod = res.data.list[0]
-    vodList.value = vod.vod_play_url.split('#').map((item) => {
-      const [title, url] = item.split('$')
-      return { title, url }
+  isLoadingVodList.value = true
+  try {
+    const res = await uni.request({
+      url: `https://libretv.is-an.org/proxy/https://www.iqiyizyapi.com/api.php/provide/vod?ac=videolist&wd=${encodeURIComponent(
+        bookName.value
+      )}`,
+      method: 'GET',
     })
+
+    if (res.data?.list?.length) {
+      const vod = res.data.list[0]
+      const playUrlString = vod.vod_play_url
+      if (playUrlString) {
+        fullVodList.value = playUrlString.split('#').map((itemStr, index) => {
+          const parts = itemStr.split('$')
+          const title = parts[0] || `第 ${index + 1} 集`
+          const url = parts[1]
+          const vod_pic = vod.vod_pic || ''
+          return {
+            title,
+            url,
+            vod_pic,
+            playing: false,
+            loaded: false,
+            id: `video-${index}`, // 唯一ID
+            originalIndex: index, // 在fullVodList中的原始索引
+            showCover: true,
+            loading: false,
+            hasError: false,
+          }
+        })
+        loadMoreVideos() // 初始加载第一批
+      } else {
+        console.error('No play URLs found')
+        fullVodList.value = []
+      }
+    } else {
+      console.error('Failed to fetch video list or list is empty', res)
+      fullVodList.value = []
+    }
+  } catch (error) {
+    console.error('Error fetching video list:', error)
+    fullVodList.value = []
+  } finally {
+    isLoadingVodList.value = false
   }
 }
 
-// 切换集数
-const changeEpisode = (idx) => {
-  currentIndex.value = idx
-  showPicker.value = false
-  isPlaying.value = true
+const loadMoreVideos = () => {
+  if (isLoadingMore.value) return
+  if (displayVodList.value.length >= fullVodList.value.length) return // 没有更多了
+
+  isLoadingMore.value = true
+  const currentLength = displayVodList.value.length
+  const nextItems = fullVodList.value.slice(
+    currentLength,
+    currentLength + ITEMS_PER_LOAD
+  )
+
+  // 为新加载的视频项的 videoPlayerRefs 创建占位符
+  nextItems.forEach((item) => {
+    if (!videoPlayerRefs.value[item.id]) {
+      videoPlayerRefs.value[item.id] = null
+    }
+  })
+
+  displayVodList.value.push(...nextItems)
+
+  nextTick(() => {
+    isLoadingMore.value = false
+    // 如果是初始加载且swiper在第一个，尝试播放
+    if (
+      currentLength === 0 &&
+      displayVodList.value.length > 0 &&
+      swiperCurrentIndex.value === 0
+    ) {
+      // 确保第一个视频状态正确，并尝试播放
+      const firstVideo = displayVodList.value[0]
+      if (firstVideo) {
+        firstVideo.loading = true
+        firstVideo.showCover = false
+        setTimeout(() => {
+          playVideo(0) // 播放 displayVodList 中的第一个
+        }, 10)
+      }
+    }
+  })
 }
 
-// 切换倍速
-const changeRate = () => {
-  const rates = [1.0, 1.5, 2.0]
-  const idx = rates.indexOf(playRate.value)
-  playRate.value = rates[(idx + 1) % rates.length]
-}
+const playVideo = async (displayIndex) => {
+  // 参数是 displayVodList 的索引
+  if (displayIndex < 0 || displayIndex >= displayVodList.value.length) return
 
-// 播放控制
-const togglePlay = () => {
-  if (isPlaying.value) {
-    videoPlayerRef.value.pause()
+  const videoToPlay = displayVodList.value[displayIndex]
+  if (!videoToPlay) return
+
+  const originalIndexToPlay = videoToPlay.originalIndex
+
+  // 停止其他所有正在播放的视频 (基于 displayVodList)
+  displayVodList.value.forEach((video, dIndex) => {
+    if (dIndex !== displayIndex && video.playing) {
+      const player = videoPlayerRefs.value[video.id]
+      if (player && typeof player.pause === 'function') {
+        player.pause()
+      }
+      video.playing = false
+      video.showCover = true
+    }
+  })
+
+  // 停止 fullVodList 中其他可能在播放的视频（以防万一）
+  fullVodList.value.forEach((video, fIndex) => {
+    if (fIndex !== originalIndexToPlay && video.playing) {
+      const player = videoPlayerRefs.value[video.id]
+      if (player && typeof player.pause === 'function') {
+        player.pause()
+      }
+      video.playing = false
+      // fullVodList 中的 showCover 状态也应同步，但主要由 displayVodList 控制渲染
+    }
+  })
+
+  // 播放当前视频
+  const currentPlayer = videoPlayerRefs.value[videoToPlay.id]
+
+  if (currentPlayer && typeof currentPlayer.play === 'function') {
+    videoToPlay.loading = true
+    videoToPlay.showCover = false
+    videoToPlay.hasError = false
+    // 同步状态到 fullVodList
+    if (fullVodList.value[originalIndexToPlay]) {
+      fullVodList.value[originalIndexToPlay].loading = true
+      fullVodList.value[originalIndexToPlay].showCover = false
+      fullVodList.value[originalIndexToPlay].hasError = false
+    }
+
+    try {
+      await currentPlayer.play()
+    } catch (e) {
+      console.error(`Error playing video ${videoToPlay.id}:`, e)
+      videoToPlay.loading = false
+      videoToPlay.hasError = true
+      videoToPlay.showCover = true
+      if (fullVodList.value[originalIndexToPlay]) {
+        fullVodList.value[originalIndexToPlay].loading = false
+        fullVodList.value[originalIndexToPlay].hasError = true
+        fullVodList.value[originalIndexToPlay].showCover = true
+      }
+    }
   } else {
-    videoPlayerRef.value.play()
+    console.warn(
+      `Video player for ${videoToPlay.id} not ready or play function missing.`
+    )
+    videoToPlay.loading = false
+    videoToPlay.showCover = true
+    if (fullVodList.value[originalIndexToPlay]) {
+      fullVodList.value[originalIndexToPlay].loading = false
+      fullVodList.value[originalIndexToPlay].showCover = true
+    }
   }
-  isPlaying.value = !isPlaying.value
+  activeVideoOriginalIndex.value = originalIndexToPlay
 }
 
-// 显示/隐藏控制层
-const toggleControls = () => {
-  showControls.value = !showControls.value
-  if (showControls.value) {
-    setTimeout(() => {
-      showControls.value = false
-    }, 3000)
-  }
-}
-
-// 视频播放结束
-const onVideoEnd = () => {
-  if (currentIndex.value < vodList.value.length - 1) {
-    currentIndex.value++
+const manualPlay = (displayIndex) => {
+  const video = displayVodList.value[displayIndex]
+  if (video && !video.playing) {
+    playVideo(displayIndex)
   }
 }
 
-// 上下滑切换集
-let startY = 0
-const onTouchStart = (e) => {
-  startY = e.touches[0].clientY
-}
-const onTouchEnd = (e) => {
-  const deltaY = e.changedTouches[0].clientY - startY
-  if (deltaY < -50 && currentIndex.value < vodList.value.length - 1) {
-    currentIndex.value++
-  } else if (deltaY > 50 && currentIndex.value > 0) {
-    currentIndex.value--
+const onSwiperChange = (e) => {
+  const newDisplayIndex = e.detail.current
+  // swiperCurrentIndex.value = newDisplayIndex; // 由 animationfinish 更新
+
+  const videoToStop = displayVodList.value[swiperCurrentIndex.value] // 上一个显示的视频
+  if (videoToStop && videoToStop.playing) {
+    const oldPlayer = videoPlayerRefs.value[videoToStop.id]
+    if (oldPlayer && typeof oldPlayer.pause === 'function') {
+      oldPlayer.pause()
+    }
+    videoToStop.playing = false
+    videoToStop.showCover = true
+    if (fullVodList.value[videoToStop.originalIndex]) {
+      fullVodList.value[videoToStop.originalIndex].playing = false
+      fullVodList.value[videoToStop.originalIndex].showCover = true
+    }
+  }
+
+  // 标记新视频准备加载
+  const videoToLoad = displayVodList.value[newDisplayIndex]
+  if (videoToLoad) {
+    videoToLoad.loading = true
+    videoToLoad.showCover = false
+    if (fullVodList.value[videoToLoad.originalIndex]) {
+      fullVodList.value[videoToLoad.originalIndex].loading = true
+      fullVodList.value[videoToLoad.originalIndex].showCover = false
+    }
   }
 }
 
-// 新增互动功能
-const handleLike = () => {
-  isLiked.value = !isLiked.value
-  console.log('点击了喜欢按钮')
+const onSwiperAnimationFinish = (e) => {
+  const newDisplayIndex = e.detail.current
+  swiperCurrentIndex.value = newDisplayIndex
+  playVideo(newDisplayIndex)
+
+  // 检查是否需要加载更多视频
+  if (newDisplayIndex >= displayVodList.value.length - 1 - PRELOAD_THRESHOLD) {
+    loadMoreVideos()
+  }
 }
 
-const handleCollect = () => {
-  console.log('点击了追剧按钮')
+// originalIndex 是 fullVodList 中的索引
+const updateVideoState = (originalIndex, stateChanges) => {
+  if (originalIndex < 0 || originalIndex >= fullVodList.value.length) return
+
+  const videoInFullList = fullVodList.value[originalIndex]
+  Object.assign(videoInFullList, stateChanges)
+
+  // 同步到 displayVodList (如果存在)
+  const videoInDisplayList = displayVodList.value.find(
+    (v) => v.originalIndex === originalIndex
+  )
+  if (videoInDisplayList) {
+    Object.assign(videoInDisplayList, stateChanges)
+  }
 }
 
-const handleComment = () => {
-  console.log('点击了评论按钮')
+const onVideoPlay = (originalIndex) => {
+  updateVideoState(originalIndex, {
+    playing: true,
+    loading: false,
+    showCover: false,
+  })
 }
 
-const handleShare = () => {
-  console.log('点击了分享按钮')
+const onVideoPause = (originalIndex) => {
+  updateVideoState(originalIndex, { playing: false })
+  // 暂停时通常不主动显示封面，除非有特定逻辑
 }
 
-// 视频播放事件处理
-const onVideoPlay = () => {
-  isPlaying.value = true
+const onVideoEnded = (originalIndex) => {
+  updateVideoState(originalIndex, { playing: false, showCover: true })
+
+  const currentDisplayVideo = displayVodList.value.find(
+    (v) => v.originalIndex === originalIndex
+  )
+  const currentDisplayIndex = displayVodList.value.indexOf(currentDisplayVideo)
+
+  // 自动播放下一个 (如果存在于 displayVodList 中)
+  if (
+    currentDisplayIndex !== -1 &&
+    currentDisplayIndex < displayVodList.value.length - 1
+  ) {
+    swiperCurrentIndex.value = currentDisplayIndex + 1
+  } else if (
+    currentDisplayIndex === displayVodList.value.length - 1 &&
+    displayVodList.value.length < fullVodList.value.length
+  ) {
+    // 是当前显示列表的最后一个，但完整列表还有更多，尝试加载并播放
+    loadMoreVideos() // 这会异步添加，可能需要调整逻辑以确保平滑过渡
+    // 简单的处理：结束后如果能加载更多，用户需要手动滑一下
+  } else {
+    // 已经是最后一个视频 (在完整列表或当前加载批次中)
+  }
 }
 
-// 视频暂停事件处理
-const onVideoPause = () => {
-  isPlaying.value = false
+const onVideoError = (originalIndex, errorEvent) => {
+  console.error(
+    `Video error at originalIndex ${originalIndex}:`,
+    errorEvent.detail.errMsg
+  )
+  updateVideoState(originalIndex, {
+    playing: false,
+    loading: false,
+    showCover: true,
+    hasError: true,
+  })
 }
+
+const onLoadedMetadata = (originalIndex) => {
+  updateVideoState(originalIndex, { loading: false, loaded: true })
+  // 如果当前视频是活动视频且没有播放，则尝试播放 (playVideo 会处理)
+  // if (originalIndex === activeVideoOriginalIndex.value && !fullVodList.value[originalIndex].playing) {
+  // }
+}
+
+watch(
+  fullVodList,
+  async (newList, oldList) => {
+    if (newList.length > oldList.length) {
+      // 仅在列表项增加时操作
+      await nextTick()
+      // 确保新增项的 videoPlayerRefs 引用被正确处理
+      // (已在 loadMoreVideos 中预创建 null 引用)
+    }
+  },
+  { deep: false }
+) // 仅观察列表长度或引用变化，非深度
 </script>
 
 <style lang="scss" scoped>
-.player-container {
-  position: relative;
+/* SCSS样式 (与之前相同，保持嵌套结构) */
+.player-page-container {
   width: 100vw;
-  height: calc(
-    100vh - var(--window-top) - 100rpx
-  ); /* 减去状态栏、导航栏和底部栏的总高度 */
-  background: #000;
+  height: 100vh;
+  background-color: #000;
   overflow: hidden;
 
-  /* 顶部栏样式 */
-  .top-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: #fff;
-    z-index: 10;
-    padding: 16rpx 30rpx 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.5),
-      rgba(0, 0, 0, 0)
-    );
-    box-sizing: border-box; /* 添加这一行 */
-    .back-icon {
-      width: 32rpx;
-      height: 32rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .episode {
-      font-size: 32rpx;
-      font-weight: 500;
-    }
-
-    .rate-container {
-      display: flex;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 4rpx 16rpx;
-      border-radius: 20rpx;
-
-      .rate {
-        font-size: 28rpx;
-      }
-    }
-  }
-
-  /* 视频播放器样式 */
-  .video {
-    width: 100vw;
-    height: 100%;
-    background: #000;
-    object-fit: contain;
-  }
-
-  /* 播放控制层 */
-  .video-controls {
-    position: absolute;
-    top: 0;
-    left: 0;
+  .video-swiper {
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 5;
 
-    .play-btn {
-      width: 120rpx;
-      height: 120rpx;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
+    .swiper-item-container {
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
+      background-color: #000;
 
-      .iconfont {
-        font-size: 60rpx;
-        color: #fff;
-      }
-    }
-  }
-
-  /* 右侧互动按钮 */
-  .side-actions {
-    position: absolute;
-    right: 30rpx;
-    bottom: 300rpx;
-    display: flex;
-    flex-direction: column;
-    z-index: 10;
-
-    .action-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 16rpx;
-
-      .action-icon {
-        width: 90rpx;
-        height: 90rpx;
+      .video-wrapper {
+        width: 100%;
+        height: 100%;
+        position: relative;
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-bottom: 10rpx;
 
-        .action-image {
-          width: 64rpx;
-          height: 64rpx;
-        }
-      }
-
-      .action-count,
-      .action-text {
-        font-size: 24rpx;
-        color: #fff;
-      }
-    }
-  }
-
-  /* 底部信息 */
-  .bottom-info {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 30rpx;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
-    z-index: 10;
-    box-sizing: border-box; /* 添加这一行 */
-
-    .info {
-      margin-bottom: 30rpx;
-
-      .tag {
-        font-size: 24rpx;
-        color: #fff;
-        background: #07c160;
-        padding: 4rpx 12rpx;
-        border-radius: 6rpx;
-        margin-bottom: 16rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: fit-content;
-        text-align: center; /* 添加这一行 */
-      }
-
-      .title {
-        font-size: 40rpx;
-        font-weight: bold;
-        color: #fff;
-        margin-bottom: 16rpx;
-        display: block;
-      }
-
-      .desc-container {
-        display: flex;
-        align-items: center;
-        .desc {
-          font-size: 28rpx;
-          color: rgba(255, 255, 255, 0.8);
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          /* 移除 white-space: nowrap */
-          display: -webkit-box;
-          -webkit-line-clamp: 2; /* 限制为两行 */
-          -webkit-box-orient: vertical;
-          line-height: 1.3; /* 添加适当的行高 */
+        .video-instance {
+          width: 100%;
+          height: 100%;
         }
 
-        .expand {
-          font-size: 28rpx;
-          color: #07c160;
-          margin-left: 10rpx;
+        .video-cover {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: #333;
+          z-index: 5;
         }
-      }
-    }
 
-    .episode-nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .current-episode {
-        font-size: 28rpx;
-        color: rgba(255, 255, 255, 0.8);
-      }
-
-      .choose-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: #fff;
-        border-radius: 30rpx;
-        padding: 12rpx 30rpx;
-        font-size: 28rpx;
-        text-align: center;
-        /* 添加以下属性实现文字垂直居中 */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: fit-content;
-      }
-    }
-  }
-
-  /* 选集弹窗 */
-  .episode-popup {
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-
-    .popup-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 30rpx;
-      border-bottom: 1px solid #eee;
-
-      .popup-title {
-        font-size: 32rpx;
-        font-weight: bold;
-      }
-
-      .popup-close {
-        font-size: 40rpx;
-        color: #999;
-      }
-    }
-
-    .episode-scroll {
-      max-height: 50vh;
-      .episode-list {
-        // display: flex;
-        // flex-wrap: wrap;
-        padding: 30rpx;
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        grid-gap: 16rpx;
-        .episode-item {
-          text-align: center;
-          border-radius: 16rpx;
-          background: #f5f5f5;
-          color: #333;
-          font-size: 28rpx;
-          aspect-ratio: 1 / 1; // 添加这一行，设置宽高比为1:1
+        .play-button-overlay {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 120rpx;
+          height: 120rpx;
           display: flex;
-          align-items: center;
           justify-content: center;
-          &.active {
-            background: #07c160;
+          align-items: center;
+          z-index: 10;
+          .play-icon {
+            width: 80rpx;
+            height: 80rpx;
+          }
+        }
+
+        .loading-indicator {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background-color: rgba(0, 0, 0, 0.5);
+          z-index: 15;
+          .loader {
+            border: 8rpx solid #f3f3f3;
+            border-top: 8rpx solid #3498db;
+            border-radius: 50%;
+            width: 80rpx;
+            height: 80rpx;
+            animation: spin 1s linear infinite;
+          }
+        }
+
+        .video-overlay-content {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 20rpx;
+          box-sizing: border-box;
+          z-index: 2;
+          pointer-events: none;
+
+          .top-info {
+            position: absolute;
+            top: calc(var(--status-bar-height, 0px) + 20rpx);
+            left: 20rpx;
+            right: 20rpx;
+            .episode-name {
+              color: #fff;
+              font-size: 32rpx;
+              text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            }
+          }
+
+          .bottom-info {
             color: #fff;
-            font-weight: bold;
+            padding-bottom: 100rpx;
+            .video-title {
+              font-size: 36rpx;
+              font-weight: bold;
+              margin-bottom: 10rpx;
+              text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+            }
+            .video-description {
+              font-size: 28rpx;
+              text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
           }
         }
       }
     }
   }
-}
 
-/* 引入字体图标 */
-@font-face {
-  font-family: 'iconfont';
-  src: url('https://at.alicdn.com/t/font_2331152_v7qbmiwvvs.ttf')
-    format('truetype');
-}
-
-.iconfont {
-  font-family: 'iconfont';
-}
-
-.icon-play:before {
-  content: '\e731';
-}
-.icon-pause:before {
-  content: '\e67a';
-}
-
-/* 底部栏样式 */
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100rpx; /* 底部栏高度 */
-  background-color: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 添加这一行，使内容水平居中 */
-  padding: 0 30rpx;
-  box-sizing: border-box;
-  z-index: 10;
-
-  .bottom-logo {
+  .loading-container,
+  .empty-container {
+    width: 100%;
+    height: 100%;
     display: flex;
+    justify-content: center;
     align-items: center;
-    justify-content: center; /* 添加这一行，使内容水平居中 */
+    color: #fff;
+    font-size: 32rpx;
+  }
+}
 
-    image {
-      width: 48rpx;
-      height: 48rpx;
-      margin-right: 10rpx;
-    }
-
-    text {
-      color: #fff;
-      font-size: 28rpx;
-    }
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 </style>
