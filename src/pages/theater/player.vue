@@ -24,7 +24,6 @@
             @click="() => manualPlay(index)"
           />
           <!-- 播放按钮 -->
-
           <VideoPlayer
             :ref="(el) => (videoPlayerRefs[item.id] = el)"
             :src="item.url"
@@ -32,7 +31,7 @@
             :autoplay="false"
             :controls="true"
             :show-play-btn="true"
-            :enable-play-gesture="treu"
+            :enable-play-gesture="true"
             :show-center-play-btn="true"
             :show-fullscreen-btn="false"
             :enable-progress-gesture="false"
@@ -47,12 +46,21 @@
             @loadedmetadata="() => onLoadedMetadata(item.originalIndex)"
             class="video-instance"
           >
+            <!-- 添加透明占满整个视频区域的cover-view -->
+            <cover-view class="video-transparent-overlay">
+              <cover-view
+                @click="onVideoClick(index)"
+                class="video-transparent-overlay"
+              >
+              </cover-view>
+            </cover-view>
+
             <cover-view
               v-if="!item.playing && !item.loading"
               class="play-button-overlay"
-              @click="() => manualPlay(index)"
             >
               <cover-image
+                @click="manualPlay(index)"
                 src="/static/theater/play.png"
                 class="play-icon"
               ></cover-image>
@@ -71,8 +79,11 @@
                 }}</cover-view>
               </cover-view>
             </cover-view> -->
-          <cover-view v-if="item.loading" class="loading-indicator">
-            <cover-view class="loader"></cover-view>
+          <cover-view v-if="item.loading" class="loader-container">
+            <cover-image
+              src="/static/theater/loading.png"
+              class="loader-image"
+            ></cover-image>
           </cover-view>
         </view>
       </swiper-item>
@@ -81,7 +92,7 @@
       v-else-if="isLoadingVodList && fullVodList.length === 0"
       class="loading-container"
     >
-      <text>加载中...</text>
+      <image src="/static/theater/loading.png" class="loader-image"></image>
     </view>
     <view
       v-else-if="!isLoadingVodList && fullVodList.length === 0"
@@ -125,7 +136,7 @@ const fetchVodList = async () => {
   isLoadingVodList.value = true
   try {
     const res = await uni.request({
-      url: `https://libretv.is-an.org/proxy/https://www.iqiyizyapi.com/api.php/provide/vod?ac=videolist&wd=${encodeURIComponent(
+      url: `https://www.iqiyizyapi.com/api.php/provide/vod?ac=videolist&wd=${encodeURIComponent(
         bookName.value
       )}`,
       method: 'GET',
@@ -286,6 +297,7 @@ const playVideo = async (displayIndex) => {
 }
 
 const manualPlay = (displayIndex) => {
+  console.log(`点击了播放，当前索引: ${displayIndex}`)
   const video = displayVodList.value[displayIndex]
   if (video && !video.playing) {
     playVideo(displayIndex)
@@ -407,6 +419,11 @@ const onLoadedMetadata = (originalIndex) => {
   // if (originalIndex === activeVideoOriginalIndex.value && !fullVodList.value[originalIndex].playing) {
   // }
 }
+// 在script setup部分添加这个方法（与其他方法同级）
+const onVideoClick = (index) => {
+  console.log('点击了video', index)
+  // 这里可以添加其他处理逻辑
+}
 
 watch(
   fullVodList,
@@ -453,6 +470,15 @@ watch(
         .video-instance {
           width: 100%;
           height: 100%;
+          .video-transparent-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 60rpx);
+            z-index: 8; /* 确保z-index低于play-button-overlay的10 */
+            background-color: transparent;
+          }
         }
 
         .video-cover {
@@ -481,22 +507,18 @@ watch(
             height: 80rpx;
           }
         }
-
-        .loading-indicator {
+        .loader-container {
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
           display: flex;
           justify-content: center;
           align-items: center;
-          background-color: rgba(0, 0, 0, 0.5);
-          z-index: 15;
-          .loader {
-            border: 8rpx solid #f3f3f3;
-            border-top: 8rpx solid #3498db;
-            border-radius: 50%;
+          z-index: 10;
+          .loader-image {
+            position: absolute;
+            margin: auto;
             width: 80rpx;
             height: 80rpx;
             animation: spin 1s linear infinite;
@@ -558,6 +580,12 @@ watch(
     align-items: center;
     color: #fff;
     font-size: 32rpx;
+
+    .loader-image {
+      width: 80rpx;
+      height: 80rpx;
+      animation: spin 1s linear infinite;
+    }
   }
 }
 
