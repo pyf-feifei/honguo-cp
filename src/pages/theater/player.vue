@@ -54,9 +54,14 @@
               >
               </cover-view>
             </cover-view>
-
+            <cover-view v-if="loading" class="loader-container">
+              <cover-image
+                src="/static/theater/loadaing.gif"
+                class="loader-image"
+              ></cover-image>
+            </cover-view>
             <cover-view
-              v-if="!item.playing && !item.loading"
+              v-else-if="!item.playing && !item.loading"
               class="play-button-overlay"
             >
               <cover-image
@@ -79,12 +84,6 @@
                 }}</cover-view>
               </cover-view>
             </cover-view> -->
-          <cover-view v-if="item.loading" class="loader-container">
-            <cover-image
-              src="/static/theater/loading.png"
-              class="loader-image"
-            ></cover-image>
-          </cover-view>
         </view>
       </swiper-item>
     </swiper>
@@ -92,7 +91,7 @@
       v-else-if="isLoadingVodList && fullVodList.length === 0"
       class="loading-container"
     >
-      <image src="/static/theater/loading.png" class="loader-image"></image>
+      <image src="/static/theater/loadaing.gif" class="loader-image"></image>
     </view>
     <view
       v-else-if="!isLoadingVodList && fullVodList.length === 0"
@@ -515,13 +514,15 @@ watch(
           display: flex;
           justify-content: center;
           align-items: center;
+          width: 120rpx;
+          height: 120rpx;
           z-index: 10;
+
           .loader-image {
             position: absolute;
             margin: auto;
-            width: 80rpx;
-            height: 80rpx;
-            animation: spin 1s linear infinite;
+            width: 120rpx;
+            height: 120rpx;
           }
         }
 
@@ -582,19 +583,9 @@ watch(
     font-size: 32rpx;
 
     .loader-image {
-      width: 80rpx;
-      height: 80rpx;
-      animation: spin 1s linear infinite;
+      width: 120rpx;
+      height: 120rpx;
     }
-  }
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
   }
 }
 </style>
