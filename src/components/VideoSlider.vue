@@ -117,7 +117,7 @@ const onTouchMove = (e) => {
   ) {
     damping = 0.4
   }
-  slideDistance.value = Math.max(Math.min((deltaY * damping) / 4, 60), -60)
+  slideDistance.value = Math.max(Math.min((deltaY * damping) / 4, 100), -100)
   e.preventDefault()
 }
 const onTouchEnd = () => {
@@ -151,7 +151,7 @@ watch(currentIndex, (newIndex) => {
       playStatus.value[realIndex] = false
     }
   })
-  
+
   nextTick(() => {
     const idx = visibleItems.value.findIndex(
       (_, i) => getItemIndex(i) === newIndex
@@ -186,7 +186,7 @@ const playFirstVideo = () => {
         playStatus.value[realIndex] = false
       }
     })
-    
+
     const idx = visibleItems.value.findIndex(
       (_, i) => getItemIndex(i) === currentIndex.value
     )
@@ -221,7 +221,7 @@ const togglePlay = (idx) => {
         playStatus.value[rIndex] = false
       }
     })
-    
+
     video.play()
     playStatus.value[realIndex] = true
   }
