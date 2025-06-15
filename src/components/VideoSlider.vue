@@ -93,7 +93,7 @@ const getItemStyle = (idx) => {
     transform: `translate3d(0, ${translateY}%, 0)`,
     zIndex: realIndex === currentIndex.value ? 2 : 1,
     opacity: Math.abs(realIndex - currentIndex.value) <= 1 ? 1 : 0.6,
-    transition: isAnimating.value ? 'transform 0.3s, opacity 0.3s' : 'none',
+    transition: isAnimating.value ? 'transform 0s, opacity 0.3s' : 'none',
   }
 }
 
@@ -136,7 +136,7 @@ const onTouchEnd = () => {
         currentIndex.value--
         clearInterval(slideTimer)
       }
-    }, 3)
+    }, 2)
   } else if (
     deltaY < -threshold &&
     currentIndex.value < props.vodList.length - 1
@@ -151,14 +151,13 @@ const onTouchEnd = () => {
         currentIndex.value++
         clearInterval(slideTimer)
       }
-    }, 3)
+    }, 2)
 
     // 移除loadMore事件触发，因为player.vue已经完整获取了数据
   }
   setTimeout(() => {
     isAnimating.value = false
   }, 300)
-  slideDistance.value = 0
 }
 
 // 自动播放当前视频
@@ -293,7 +292,7 @@ function setVideoRef(el, idx) {
     width: 100%;
     height: 100%;
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-      opacity 0.3s ease;
+      opacity 1s ease;
     will-change: transform, opacity;
     backface-visibility: hidden;
   }
