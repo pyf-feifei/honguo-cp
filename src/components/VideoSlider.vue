@@ -63,7 +63,7 @@ const props = defineProps({
   vodList: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 })
-const emit = defineEmits(['loadMore'])
+// 移除loadMore事件定义，因为不再需要
 
 const currentIndex = ref(0)
 const slideDistance = ref(0)
@@ -89,11 +89,25 @@ const getItemIndex = (visibleIdx) =>
 const getItemStyle = (idx) => {
   const realIndex = getItemIndex(idx)
   let translateY = (realIndex - currentIndex.value) * 100 + slideDistance.value
+  
+  // 计算z-index，确保当前项和相邻项在最上层
+  const zIndex = realIndex === currentIndex.value ? 10 : 
+               Math.abs(realIndex - currentIndex.value) === 1 ? 5 : 1
+  
+  // 计算不透明度，使相邻项半透明，远离项更透明
+  const opacity = realIndex === currentIndex.value ? 1 : 
+                Math.abs(realIndex - currentIndex.value) === 1 ? 0.8 : 0.6
+  
+  // 为动画添加缓动效果
+  const transition = isAnimating.value ? 
+    'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.3s' : 'none'
+  
   return {
     transform: `translate3d(0, ${translateY}%, 0)`,
-    zIndex: realIndex === currentIndex.value ? 2 : 1,
-    opacity: Math.abs(realIndex - currentIndex.value) <= 1 ? 1 : 0.6,
-    transition: isAnimating.value ? 'transform 0.3s, opacity 0.3s' : 'none',
+    zIndex,
+    opacity,
+    transition,
+    willChange: isAnimating.value ? 'transform, opacity' : 'auto'
   }
 }
 
@@ -126,19 +140,89 @@ const onTouchEnd = () => {
   const deltaY = slideDistance.value
   const threshold = 15
   isAnimating.value = true
-  if (deltaY > threshold && currentIndex.value > 0) {
-    currentIndex.value--
-  } else if (
-    deltaY < -threshold &&
-    currentIndex.value < props.vodList.length - 1
-  ) {
-    currentIndex.value++
-    if (currentIndex.value >= props.vodList.length - 3) emit('loadMore')
+  
+  // 使用动画效果平滑过渡
+  const animateSlide = (direction) => {
+    const step = direction === 'up' ? 10 : -10 // 根据方向决定步进值
+    const targetDistance = direction === 'up' ? 100 : -100 // 目标距离
+    const interval = 16 // 动画间隔时间(ms)
+    let animationTimer = null
+    
+    const animate = () => {
+      slideDistance.value += step
+      
+      // 根据方向检查是否达到目标
+      const isComplete = direction === 'up' 
+        ? slideDistance.value >= targetDistance 
+        : slideDistance.value <= targetDistance
+        
+      if (!isComplete) {
+        animationTimer = setTimeout(animate, interval)
+      } else {
+        // 动画完成后，更新索引
+        if (direction === 'up') {
+          currentIndex.value--
+        } else {
+          currentIndex.value++
+        }
+        
+        // 重置滑动距离
+        slideDistance.value = 0
+        
+        // 延迟一段时间后关闭动画状态
+        setTimeout(() => {
+          isAnimating.value = false
+        }, 50)
+      }
+    }
+    
+    // 清除可能存在的动画计时器
+    if (animationTimer) {
+      clearTimeout(animationTimer)
+    }
+    
+    // 开始动画
+    animate()
   }
-  setTimeout(() => {
-    isAnimating.value = false
-  }, 300)
-  slideDistance.value = 0
+  
+  if (deltaY > threshold && currentIndex.value > 0) {
+    // 向上滑动，显示上一个视频
+    animateSlide('up')
+  } else if (deltaY < -threshold && currentIndex.value < props.vodList.length - 1) {
+    // 向下滑动，显示下一个视频
+    animateSlide('down')
+  } else {
+    // 如果滑动距离不够，回弹到原位
+    const startDistance = slideDistance.value
+    const startTime = Date.now()
+    const duration = 300
+    let animationTimer = null
+    
+    const animateReset = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const easeProgress = 1 - Math.pow(1 - progress, 3)
+      
+      slideDistance.value = startDistance * (1 - easeProgress)
+      
+      if (progress < 1) {
+        animationTimer = setTimeout(animateReset, 16)
+      } else {
+        slideDistance.value = 0
+        setTimeout(() => {
+          isAnimating.value = false
+        }, 50)
+      }
+    }
+    
+    // 清除可能存在的动画计时器
+    if (animationTimer) {
+      clearTimeout(animationTimer)
+    }
+    
+    // 开始回弹动画
+    animateReset()
+  }
 }
 
 // 自动播放当前视频
