@@ -16,7 +16,7 @@
     {
       "path": "src/pages/theater/player",
       "style": {
-        "navigationBarTitleText": "播放"
+        "navigationStyle": "custom"
       }
     },
     {

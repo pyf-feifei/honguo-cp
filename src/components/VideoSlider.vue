@@ -23,6 +23,7 @@
           :show-play-btn="false"
           :enable-progress-gesture="false"
           :object-fit="'contain'"
+          :show-loading="false"
           @click="togglePlay(idx)"
           :ref="(el) => setVideoRef(el, idx)"
         >
@@ -47,7 +48,7 @@
     </view>
     <view class="loading" v-if="loading">
       <image
-        src="/static/theater/loading1.gif"
+        src="/static/theater/loadaing.gif"
         mode="aspectFit"
         class="loading-icon"
       ></image>
