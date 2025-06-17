@@ -120,15 +120,17 @@ const onTouchMove = (e) => {
   slideDistance.value = Math.max(Math.min((deltaY * damping) / 4, 100), -100)
   e.preventDefault()
 }
-
+//
+let slideTimer
 const onTouchEnd = () => {
   if (!isSliding) return
+
   isSliding = false
   const deltaY = slideDistance.value
-  const threshold = 15
+  const threshold = 10
   isAnimating.value = true
   if (deltaY > threshold && currentIndex.value > 0) {
-    let slideTimer = setInterval(() => {
+    slideTimer = setInterval(() => {
       if (slideDistance.value < 100) {
         slideDistance.value++
       } else {
@@ -143,7 +145,7 @@ const onTouchEnd = () => {
   ) {
     console.log('slideDistance.value', slideDistance.value)
 
-    let slideTimer = setInterval(() => {
+    slideTimer = setInterval(() => {
       if (slideDistance.value > -100) {
         slideDistance.value--
       } else {
@@ -154,6 +156,27 @@ const onTouchEnd = () => {
     }, 2)
 
     // 移除loadMore事件触发，因为player.vue已经完整获取了数据
+  } else {
+    if (slideDistance.value < 0) {
+      slideTimer = setInterval(() => {
+        if (slideDistance.value < 0) {
+          slideDistance.value++
+        } else {
+          slideDistance.value = 0
+          clearInterval(slideTimer)
+        }
+      }, 2)
+    }
+    if (slideDistance.value > 0) {
+      slideTimer = setInterval(() => {
+        if (slideDistance.value > 0) {
+          slideDistance.value--
+        } else {
+          slideDistance.value = 0
+          clearInterval(slideTimer)
+        }
+      }, 2)
+    }
   }
   setTimeout(() => {
     isAnimating.value = false
