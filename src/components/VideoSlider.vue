@@ -27,22 +27,30 @@
           @click="togglePlay(idx)"
           :ref="(el) => setVideoRef(el, idx)"
         >
-          <view class="video-info">
-            <view class="video-title">{{ item.title }}</view>
-            <view class="video-controls">
-              <view class="play-btn" @click.stop="togglePlay(idx)">
-                <image
-                  :src="
-                    playStatus[getItemIndex(idx)]
-                      ? '/static/theater/pause.png'
-                      : '/static/theater/play.png'
-                  "
-                  mode="aspectFit"
-                  class="control-icon"
-                ></image>
+          <slot
+            :item="item"
+            :idx="idx"
+            :playStatus="playStatus"
+            :togglePlay="togglePlay"
+            :getItemIndex="getItemIndex"
+          >
+            <!-- <view class="video-info">
+              <view class="video-title">{{ item.title }}</view>
+              <view class="video-controls">
+                <view class="play-btn" @click.stop="togglePlay(idx)">
+                  <image
+                    :src="
+                      playStatus[getItemIndex(idx)]
+                        ? '/static/theater/pause.png'
+                        : '/static/theater/play.png'
+                    "
+                    mode="aspectFit"
+                    class="control-icon"
+                  ></image>
+                </view>
               </view>
-            </view>
-          </view>
+            </view> -->
+          </slot>
         </VideoPlayer>
       </view>
     </view>
@@ -362,8 +370,8 @@ function setVideoRef(el, idx) {
     z-index: 20;
 
     .loading-icon {
-      width: 100rpx;
-      height: 100rpx;
+      width: 160rpx;
+      height: 160rpx;
     }
   }
 }

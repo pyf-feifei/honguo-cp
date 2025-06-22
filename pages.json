@@ -16,7 +16,23 @@
     {
       "path": "src/pages/theater/player",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "subNVues": [
+          {
+            "id": "scommentPopup",
+            "path": "src/pages/theater/CommentPopup",
+            "type": "popup",
+            "style": {
+              "position": "absolute",
+              "bottom": "0px",
+              "height": "60%",
+              "margin": "auto",
+              "width": "100%",
+              "mask": "flast",
+              "background": "transparent"
+            }
+          }
+        ]
       }
     },
     {
