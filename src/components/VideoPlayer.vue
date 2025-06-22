@@ -2,9 +2,9 @@
   <view class="video-player-container">
     <!-- H5端 -->
     <template v-if="platform === 'h5'">
-      <video ref="h5VideoRef" :src="src" v-bind="attrs" class="video-player">
+      <PlarPlayer ref="plarPlayerRef" :src="src" v-bind="attrs">
         <slot></slot>
-      </video>
+      </PlarPlayer>
     </template>
 
     <!-- APP端 -->
@@ -32,6 +32,7 @@
 
 <script setup>
 import { ref, onMounted, computed, useAttrs } from 'vue'
+import PlarPlayer from '@/components/PlarPlayer/inxdx.vue'
 
 // 获取所有传入的属性
 const attrs = useAttrs()
@@ -50,7 +51,7 @@ const props = defineProps({
 
 // 视频上下文
 const videoContext = ref(null)
-const h5VideoRef = ref(null)
+const plarPlayerRef = ref(null)
 
 // 获取当前平台
 const platform = computed(() => {
@@ -73,8 +74,8 @@ const platform = computed(() => {
 // 初始化视频上下文
 onMounted(() => {
   if (platform.value === 'h5') {
-    // H5端使用DOM引用
-    videoContext.value = h5VideoRef.value
+    // H5端使用组件引用
+    videoContext.value = plarPlayerRef.value
   } else {
     // 其他平台使用uni API
     videoContext.value = uni.createVideoContext(props.videoId)
