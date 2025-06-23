@@ -1,10 +1,7 @@
 <template>
   <view class="player-container">
     <VideoSlider ref="videoSliderRef" :vodList="vodList" :loading="loading">
-      <template
-        v-slot:default="{ item, idx, playStatus, togglePlay, getItemIndex }"
-      >
-        <!-- 右侧互动按钮 -->
+      <!-- <template v-slot:default="{ item, idx }">
         <cover-view class="side-actions">
           <cover-view class="action-item">
             <cover-view class="action-icon like" @click="handleLike">
@@ -36,9 +33,6 @@
                     handleComment({
                       item,
                       idx,
-                      playStatus,
-                      togglePlay,
-                      getItemIndex,
                     })
                 "
                 src="/static/theater/message.png"
@@ -57,7 +51,7 @@
             <cover-view class="action-text">分享</cover-view>
           </cover-view>
         </cover-view>
-      </template>
+      </template> -->
     </VideoSlider>
   </view>
 </template>
@@ -95,15 +89,9 @@ const handleShare = () => {
   })
 }
 
-const openCommentPopup = ({
-  item,
-  idx,
-  playStatus,
-  togglePlay,
-  getItemIndex,
-}) => {
+const openCommentPopup = ({ item, idx }) => {
   const subNVue = uni.getSubNVueById('scommentPopup')
-  let itemIndex = getItemIndex(idx)
+  let itemIndex = videoSliderRef.value.getItemIndex(idx)
   if (subNVue) {
     subNVue.show('slide-in-bottom', 250)
 
@@ -111,8 +99,6 @@ const openCommentPopup = ({
       data: vodList.value,
       item,
       idx,
-      playStatus,
-      togglePlay,
       itemIndex,
     })
   }

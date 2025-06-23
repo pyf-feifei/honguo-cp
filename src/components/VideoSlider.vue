@@ -27,30 +27,7 @@
           @click="togglePlay(idx)"
           :ref="(el) => setVideoRef(el, idx)"
         >
-          <slot
-            :item="item"
-            :idx="idx"
-            :playStatus="playStatus"
-            :togglePlay="togglePlay"
-            :getItemIndex="getItemIndex"
-          >
-            <!-- <view class="video-info">
-              <view class="video-title">{{ item.title }}</view>
-              <view class="video-controls">
-                <view class="play-btn" @click.stop="togglePlay(idx)">
-                  <image
-                    :src="
-                      playStatus[getItemIndex(idx)]
-                        ? '/static/theater/pause.png'
-                        : '/static/theater/play.png'
-                    "
-                    mode="aspectFit"
-                    class="control-icon"
-                  ></image>
-                </view>
-              </view>
-            </view> -->
-          </slot>
+          <!-- <slot :item="item" :idx="idx"> </slot> -->
         </VideoPlayer>
       </view>
     </view>

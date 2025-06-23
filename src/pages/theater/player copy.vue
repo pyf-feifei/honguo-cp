@@ -42,14 +42,14 @@
       >
         <cover-view class="play-btn" @click.stop="togglePlay">
           <!-- 使用静态图片作为图标 -->
-          <cover-image
+          <!-- <cover-image
             :src="
               isPlaying
                 ? '/static/theater/pause.png'
                 : '/static/theater/play.png'
             "
             class="play-pause-icon"
-          ></cover-image>
+          ></cover-image> -->
         </cover-view>
       </cover-view>
       <!-- 右侧互动按钮 -->

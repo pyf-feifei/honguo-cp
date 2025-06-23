@@ -54,7 +54,6 @@ import { ref, onMounted } from 'vue'
 const localVodList = ref([])
 const currentItem = ref(null)
 const currentIdx = ref(0)
-const currentPlayStatus = ref(false)
 
 const currentItemIndex = ref(null)
 
@@ -66,7 +65,6 @@ onMounted(() => {
       localVodList.value = Array.isArray(e.data) ? e.data : []
       currentItem.value = e.item
       currentIdx.value = e.idx
-      currentPlayStatus.value = e.playStatus
       currentItemIndex.value = e.itemIndex
     }
   })

@@ -64,11 +64,11 @@
               v-else-if="!item.playing && !item.loading"
               class="play-button-overlay"
             >
-              <cover-image
+              <!-- <cover-image
                 @click="manualPlay(index)"
                 src="/static/theater/play.png"
                 class="play-icon"
-              ></cover-image>
+              ></cover-image> -->
             </cover-view>
           </VideoPlayer>
           <!-- <cover-view class="video-overlay-content">
