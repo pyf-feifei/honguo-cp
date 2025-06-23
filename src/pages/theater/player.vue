@@ -31,7 +31,16 @@
           <cover-view class="action-item">
             <cover-view class="action-icon comment">
               <cover-image
-                @click="handleComment"
+                @click="
+                  () =>
+                    handleComment({
+                      item,
+                      idx,
+                      playStatus,
+                      togglePlay,
+                      getItemIndex,
+                    })
+                "
                 src="/static/theater/message.png"
                 class="action-image"
               ></cover-image>
@@ -54,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import VideoSlider from '../../components/VideoSlider.vue'
 
@@ -75,8 +84,8 @@ const handleCollect = () => {
     icon: 'none',
   })
 }
-const handleComment = () => {
-  openCommentPopup()
+const handleComment = (slotProps) => {
+  openCommentPopup(slotProps)
 }
 const handleShare = () => {
   // 分享逻辑
@@ -86,12 +95,26 @@ const handleShare = () => {
   })
 }
 
-const openCommentPopup = () => {
+const openCommentPopup = ({
+  item,
+  idx,
+  playStatus,
+  togglePlay,
+  getItemIndex,
+}) => {
   const subNVue = uni.getSubNVueById('scommentPopup')
-  console.log('subNVue', subNVue)
-
+  let itemIndex = getItemIndex(idx)
   if (subNVue) {
     subNVue.show('slide-in-bottom', 250)
+
+    uni.$emit('vodList', {
+      data: vodList.value,
+      item,
+      idx,
+      playStatus,
+      togglePlay,
+      itemIndex,
+    })
   }
 }
 
@@ -124,7 +147,7 @@ const fetchVodList = async () => {
       const vod = res.data.list[0]
       const newEpisodes = vod.vod_play_url.split('#').map((item) => {
         const [title, url] = item.split('$')
-        return { title, url }
+        return { title, url, vodPic: vod.vod_pic }
       })
       console.log('newEpisodes', newEpisodes)
 
@@ -150,6 +173,16 @@ const fetchVodList = async () => {
 // 组件挂载时获取视频列表
 onMounted(() => {
   // onLoad已经处理了数据加载，这里可以添加其他初始化逻辑
+  uni.$on('commentPopup-selected', (e) => {
+    console.log('选中某一集', e) // 打印完整的 e 对象
+    if (e && e.index) {
+      videoSliderRef.value.currentIndex = e.index
+      const subNVue = uni.getSubNVueById('scommentPopup')
+      if (subNVue) {
+        subNVue.hide('auto')
+      }
+    }
+  })
 })
 </script>
 
@@ -179,7 +212,6 @@ onMounted(() => {
   .video-controls {
     display: flex;
     align-items: center;
-
     .play-btn {
       width: 80rpx;
       height: 80rpx;

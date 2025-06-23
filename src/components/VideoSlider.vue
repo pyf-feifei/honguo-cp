@@ -138,6 +138,10 @@ const onTouchEnd = () => {
   const deltaY = slideDistance.value
   const threshold = 10
   isAnimating.value = true
+  // 清除之前的定时器
+  if (slideTimer) {
+    clearInterval(slideTimer)
+  }
   if (deltaY > threshold && currentIndex.value > 0) {
     slideTimer = setInterval(() => {
       if (slideDistance.value < 100) {
@@ -189,47 +193,56 @@ const onTouchEnd = () => {
   }
   setTimeout(() => {
     isAnimating.value = false
-  }, 300)
+  }, 100)
 }
 
 // 自动播放当前视频
-watch(currentIndex, (newIndex) => {
-  // 先暂停所有视频
-  videoRefs.value.forEach((video, idx) => {
-    if (video && typeof video.pause === 'function') {
-      video.pause()
-      const realIndex = getItemIndex(idx)
-      playStatus.value[realIndex] = false
-    }
-  })
+watch(
+  currentIndex,
+  (newIndex) => {
+    setTimeout(() => {
+      console.log('visibleItems', visibleItems.value)
+      console.log('videoRefs', videoRefs.value)
 
-  nextTick(() => {
-    const idx = visibleItems.value.findIndex(
-      (_, i) => getItemIndex(i) === newIndex
-    )
-    if (
-      idx !== -1 &&
-      videoRefs.value[idx] &&
-      typeof videoRefs.value[idx].play === 'function'
-    ) {
-      videoRefs.value[idx].play()
-      playStatus.value[newIndex] = true
-    }
-  })
-})
+      // 先过滤掉 null 再遍历
+      videoRefs.value.forEach((video, idx) => {
+        if (video && typeof video.pause === 'function') {
+          video.pause()
+          const realIndex = getItemIndex(idx)
+          playStatus.value[realIndex] = false
+        }
+      })
+
+      nextTick(() => {
+        const idx = visibleItems.value.findIndex(
+          (_, i) => getItemIndex(i) === newIndex
+        )
+        if (
+          idx !== -1 &&
+          videoRefs.value[idx] &&
+          typeof videoRefs.value[idx].play === 'function'
+        ) {
+          videoRefs.value[idx].play()
+          playStatus.value[newIndex] = true
+        }
+      })
+    }, 0)
+  },
+  { flush: 'post' }
+)
 
 // 监听视频列表变化，自动播放第一个
 watch(
   () => props.vodList,
   (newList) => {
-    if (newList.length) setTimeout(() => playFirstVideo(), 300)
+    if (newList.length) setTimeout(() => playFirstVideo(), 10)
   },
   { immediate: true }
 )
 
 const playFirstVideo = () => {
   if (videoRefs.value.length > 0) {
-    // 先暂停所有视频
+    // 先过滤掉 null 再遍历
     videoRefs.value.forEach((video, idx) => {
       if (video && typeof video.pause === 'function') {
         video.pause()
@@ -260,11 +273,10 @@ const togglePlay = (idx) => {
   if (!video) return
 
   if (playStatus.value[realIndex]) {
-    // 如果当前视频正在播放，则暂停它
     video.pause()
     playStatus.value[realIndex] = false
   } else {
-    // 如果当前视频已暂停，先暂停所有视频，再播放当前视频
+    // 先过滤掉 null 再遍历
     videoRefs.value.forEach((v, i) => {
       if (v && typeof v.pause === 'function') {
         v.pause()
@@ -289,16 +301,14 @@ onMounted(() => {
 // 暴露方法给父组件
 defineExpose({
   playFirstVideo,
+  getItemIndex,
+  togglePlay,
+  currentIndex,
 })
 
 // 用函数式 ref 绑定
 function setVideoRef(el, idx) {
-  if (el) {
-    videoRefs.value[idx] = el
-  } else {
-    // 组件卸载时清理
-    videoRefs.value[idx] = null
-  }
+  videoRefs.value[idx] = el || null
 }
 </script>
 
