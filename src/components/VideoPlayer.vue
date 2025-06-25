@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, useAttrs } from 'vue'
+import { ref, onMounted, useAttrs, watch } from 'vue'
 // #ifdef H5
 import Hls from 'hls.js'
 import PlarPlayer from './PlarPlayer/index.vue'
@@ -137,6 +137,7 @@ defineExpose({
     pointer-events: none;
     width: 160rpx;
     height: 160rpx;
+    color: white;
   }
 }
 </style>

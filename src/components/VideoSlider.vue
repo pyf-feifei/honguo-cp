@@ -25,7 +25,7 @@
         <VideoPlayer
           :src="item.url"
           :videoId="`video-${item.realIndex}`"
-          :loading="videoLoadingStatus[item.realIndex]"
+          :loading="getVideoLoadingStatus(item.realIndex)"
           :controls="false"
           :loop="true"
           :show-fullscreen-btn="false"
@@ -38,6 +38,9 @@
           @click="togglePlay(idx)"
           @loadstart="onVideoLoadStart(item.realIndex)"
           @canplay="onVideoCanPlay(item.realIndex)"
+          @play="onVideoPlay(item.realIndex)"
+          @playing="onVideoPlaying(item.realIndex)"
+          @loadeddata="onVideoLoadedData(item.realIndex)"
           @error="onVideoError(item.realIndex)"
           :ref="(el) => setVideoRef(el, idx)"
         />
@@ -47,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, reactive } from 'vue'
 import VideoPlayer from './VideoPlayer.vue'
 
 const props = defineProps({
@@ -70,7 +73,7 @@ const state = ref({
 const sliderWrapper = ref(null)
 const videoRefs = ref({}) // 改为对象，使用realIndex作为key
 const playStatus = ref({})
-const videoLoadingStatus = ref({}) // 单个视频的加载状态
+const videoLoadingStatus = reactive({}) // 单个视频的加载状态
 const virtualTotal = 5 // 虚拟列表总数
 const judgeValue = 20 // 判断滑动的最小距离
 
@@ -90,6 +93,10 @@ const visibleItems = computed(() => {
 
   for (let i = start; i < end; i++) {
     if (props.vodList[i]) {
+      // 确保每个视频都有初始的loading状态
+      if (!(i in videoLoadingStatus)) {
+        videoLoadingStatus[i] = false
+      }
       items.push({
         ...props.vodList[i],
         realIndex: i,
@@ -123,6 +130,12 @@ const getItemStyle = (idx) => {
     transitionDuration: state.value.isAnimating ? '150ms' : '0ms',
     transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
   }
+}
+
+// 获取视频loading状态
+const getVideoLoadingStatus = (realIndex) => {
+  const status = videoLoadingStatus[realIndex]
+  return status || false
 }
 
 // 触摸开始
@@ -309,6 +322,10 @@ const safeVideoOperation = (realIndex, operation) => {
     if (operation === 'play' && typeof video.play === 'function') {
       video.play()
       playStatus.value[realIndex] = true
+      // 播放成功后，清除loading状态
+      setTimeout(() => {
+        videoLoadingStatus[realIndex] = false
+      }, 1000) // 给视频1秒时间开始播放
       return true
     } else if (operation === 'pause' && typeof video.pause === 'function') {
       video.pause()
@@ -317,6 +334,8 @@ const safeVideoOperation = (realIndex, operation) => {
     }
   } catch (error) {
     console.error(`Failed to ${operation} video ${realIndex}:`, error)
+    // 如果操作失败，也清除loading状态
+    videoLoadingStatus[realIndex] = false
   }
   return false
 }
@@ -344,18 +363,27 @@ const togglePlay = (idx) => {
 
 // 视频加载事件处理
 const onVideoLoadStart = (realIndex) => {
-  console.log(`Video ${realIndex} started loading`)
-  videoLoadingStatus.value[realIndex] = true
+  videoLoadingStatus[realIndex] = true
 }
 
 const onVideoCanPlay = (realIndex) => {
-  console.log(`Video ${realIndex} can play`)
-  videoLoadingStatus.value[realIndex] = false
+  videoLoadingStatus[realIndex] = false
+}
+
+const onVideoPlay = (realIndex) => {
+  videoLoadingStatus[realIndex] = false
+}
+
+const onVideoPlaying = (realIndex) => {
+  videoLoadingStatus[realIndex] = false
+}
+
+const onVideoLoadedData = (realIndex) => {
+  videoLoadingStatus[realIndex] = false
 }
 
 const onVideoError = (realIndex) => {
-  console.log(`Video ${realIndex} load error`)
-  videoLoadingStatus.value[realIndex] = false
+  videoLoadingStatus[realIndex] = false
 }
 
 // 获取wrapper尺寸的函数
@@ -409,6 +437,10 @@ const playFirstVideo = async () => {
   console.log('wrapper height:', state.value.wrapper.height)
 
   const currentRealIndex = state.value.currentIndex
+
+  // 预先设置loading状态
+  videoLoadingStatus[currentRealIndex] = true
+
   const video = videoRefs.value[currentRealIndex]
 
   console.log(`Looking for video at realIndex ${currentRealIndex}:`, video)
@@ -452,6 +484,9 @@ const playFirstVideo = async () => {
       const success = safeVideoOperation(currentRealIndex, 'play')
       if (success) {
         console.log('Retry successful, playing video')
+      } else {
+        // 如果播放失败，重置loading状态
+        videoLoadingStatus[currentRealIndex] = false
       }
     }, 500)
   }
@@ -477,6 +512,9 @@ watch(
   (newIndex) => {
     console.log(`Index changed to ${newIndex}`)
 
+    // 预先设置新视频的loading状态
+    videoLoadingStatus[newIndex] = true
+
     // 延迟执行，确保新的视频引用已经设置
     setTimeout(() => {
       const video = videoRefs.value[newIndex]
@@ -495,10 +533,15 @@ watch(
           const success = safeVideoOperation(newIndex, 'play')
           if (success) {
             console.log(`Playing video at index ${newIndex}`)
+          } else {
+            // 如果播放失败，重置loading状态
+            videoLoadingStatus[newIndex] = false
           }
         }, 50)
       } else {
         console.error(`No video ref found for index ${newIndex}`)
+        // 如果找不到视频引用，重置loading状态
+        videoLoadingStatus[newIndex] = false
       }
     }, 150)
   }
@@ -509,6 +552,14 @@ watch(
   () => props.vodList,
   async (newList, oldList) => {
     console.log('vodList changed:', newList.length, 'videos')
+
+    // 为新的视频初始化loading状态
+    newList.forEach((_, index) => {
+      if (!(index in videoLoadingStatus)) {
+        videoLoadingStatus[index] = false
+      }
+    })
+
     // 只有在从空列表变为有内容时才调用playFirstVideo
     // 避免与onMounted重复调用
     if (newList.length > 0 && (!oldList || oldList.length === 0)) {
