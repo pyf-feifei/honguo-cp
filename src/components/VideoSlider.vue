@@ -210,8 +210,12 @@ const onTouchEnd = (e) => {
         }
 
         // 不使用动画，立即重置位置
-        state.value.move.y = 0
-        state.value.isAnimating = false
+        // state.value.move.y = 0
+        state.value.isAnimating = true
+        setTimeout(() => {
+          state.value.isAnimating = false
+          state.value.move.y = 0
+        }, 150)
       } else {
         // 回弹到原位置
         state.value.isAnimating = true
