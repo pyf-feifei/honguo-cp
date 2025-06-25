@@ -1,22 +1,30 @@
 <template>
   <view class="video-slider-container">
+    <view class="loading" v-if="loading">
+      <image
+        src="/static/theater/loadaing.gif"
+        mode="aspectFit"
+        class="loading-icon"
+      ></image>
+    </view>
     <view
       class="slider-wrapper"
+      ref="sliderWrapper"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
-      @touchcancel="onTouchEnd"
+      @touchcancel="onTouchCancel"
     >
       <view
         class="slider-item"
         v-for="(item, idx) in visibleItems"
-        :key="item.id || item.url"
+        :key="`video-${item.realIndex}`"
         :style="getItemStyle(idx)"
-        :data-index="getItemIndex(idx)"
+        :data-index="item.realIndex"
       >
         <VideoPlayer
           :src="item.url"
-          :videoId="`video-${getItemIndex(idx)}`"
+          :videoId="`video-${item.realIndex}`"
           :controls="false"
           :loop="true"
           :show-fullscreen-btn="false"
@@ -26,17 +34,8 @@
           :show-loading="false"
           @click="togglePlay(idx)"
           :ref="(el) => setVideoRef(el, idx)"
-        >
-          <!-- <slot :item="item" :idx="idx"> </slot> -->
-        </VideoPlayer>
+        />
       </view>
-    </view>
-    <view class="loading" v-if="loading">
-      <image
-        src="/static/theater/loadaing.gif"
-        mode="aspectFit"
-        class="loading-icon"
-      ></image>
     </view>
   </view>
 </template>
@@ -49,244 +48,516 @@ const props = defineProps({
   vodList: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 })
-// 移除loadMore事件定义，因为不再需要
 
-const currentIndex = ref(0)
-const slideDistance = ref(0)
-const isAnimating = ref(false)
-const videoRefs = ref([])
+// 状态管理
+const state = ref({
+  currentIndex: 0,
+  isDown: false,
+  isAnimating: false,
+  needCheck: true,
+  canSlide: false,
+  start: { x: 0, y: 0, time: 0 },
+  move: { x: 0, y: 0 },
+  wrapper: { width: 0, height: 0 },
+})
+
+const sliderWrapper = ref(null)
+const videoRefs = ref({}) // 改为对象，使用realIndex作为key
 const playStatus = ref({})
+const virtualTotal = 5 // 虚拟列表总数
+const judgeValue = 20 // 判断滑动的最小距离
 
-const preloadCount = 2 // 前后各2个
-
+// 计算可见项目
 const visibleItems = computed(() => {
   if (!props.vodList.length) return []
+
   const items = []
-  const startIdx = Math.max(0, currentIndex.value - preloadCount)
-  const endIdx = Math.min(
-    props.vodList.length - 1,
-    currentIndex.value + preloadCount
-  )
-  for (let i = startIdx; i <= endIdx; i++) items.push(props.vodList[i])
+  const half = Math.floor(virtualTotal / 2)
+  let start = Math.max(0, state.value.currentIndex - half)
+  let end = Math.min(props.vodList.length, start + virtualTotal)
+
+  // 如果接近末尾，调整start
+  if (end === props.vodList.length) {
+    start = Math.max(0, end - virtualTotal)
+  }
+
+  for (let i = start; i < end; i++) {
+    if (props.vodList[i]) {
+      items.push({
+        ...props.vodList[i],
+        realIndex: i,
+      })
+    }
+  }
+
   return items
 })
-const getItemIndex = (visibleIdx) =>
-  Math.max(0, currentIndex.value - preloadCount) + visibleIdx
+
+// 获取项目样式
 const getItemStyle = (idx) => {
-  const realIndex = getItemIndex(idx)
-  let translateY = (realIndex - currentIndex.value) * 100 + slideDistance.value
+  const item = visibleItems.value[idx]
+  if (!item) return {}
+
+  // 简化逻辑：始终使用相同的计算方式
+  const offset =
+    (item.realIndex - state.value.currentIndex) * state.value.wrapper.height
+  const translateY = offset + state.value.move.y
+
   return {
-    transform: `translate3d(0, ${translateY}%, 0)`,
-    zIndex: realIndex === currentIndex.value ? 2 : 1,
-    opacity: Math.abs(realIndex - currentIndex.value) <= 1 ? 1 : 0.6,
-    transition: isAnimating.value ? 'transform 0s, opacity 0.3s' : 'none',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    transform: `translate3d(0, ${translateY}px, 0)`,
+    zIndex: item.realIndex === state.value.currentIndex ? 2 : 1,
+    opacity: Math.abs(item.realIndex - state.value.currentIndex) <= 1 ? 1 : 0.6,
+    transitionProperty: 'transform',
+    transitionDuration: state.value.isAnimating ? '150ms' : '0ms',
+    transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
   }
 }
 
-// 触摸事件
-let touchStartY = 0
-let touchStartTime = 0
-let isSliding = false
+// 触摸开始
 const onTouchStart = (e) => {
-  if (isAnimating.value) return
-  touchStartY = e.touches[0].clientY
-  touchStartTime = Date.now()
-  isSliding = true
+  if (state.value.isAnimating) return
+
+  const touch = e.touches[0]
+  state.value.isDown = true
+  state.value.needCheck = true
+  state.value.canSlide = false
+  state.value.start.x = touch.clientX
+  state.value.start.y = touch.clientY
+  state.value.start.time = Date.now()
+  state.value.move.x = 0
+  state.value.move.y = 0
 }
+
+// 触摸移动
 const onTouchMove = (e) => {
-  if (!isSliding) return
-  const deltaY = e.touches[0].clientY - touchStartY
-  let damping = 0.8
-  if (
-    (currentIndex.value === 0 && deltaY > 0) ||
-    (currentIndex.value === props.vodList.length - 1 && deltaY < 0)
-  ) {
-    damping = 0.4
+  if (!state.value.isDown) return
+
+  const touch = e.touches[0]
+  state.value.move.x = touch.clientX - state.value.start.x
+  state.value.move.y = touch.clientY - state.value.start.y
+
+  // 检测滑动方向
+  if (state.value.needCheck) {
+    if (
+      Math.abs(state.value.move.x) > judgeValue ||
+      Math.abs(state.value.move.y) > judgeValue
+    ) {
+      // 判断是否为垂直滑动
+      const angle = Math.abs(state.value.move.x) / Math.abs(state.value.move.y)
+      state.value.canSlide = angle <= 1 // 垂直滑动
+      state.value.needCheck = false
+    }
   }
-  slideDistance.value = Math.max(Math.min((deltaY * damping) / 4, 100), -100)
-  e.preventDefault()
+
+  if (state.value.canSlide) {
+    const isNext = state.value.move.y < 0
+    const canNext = !(
+      (state.value.currentIndex === 0 && !isNext) ||
+      (state.value.currentIndex === props.vodList.length - 1 && isNext)
+    )
+
+    if (canNext) {
+      e.preventDefault()
+      e.stopPropagation()
+    } else {
+      // 在边界时添加阻尼效果
+      const damping = 0.3
+      if (state.value.currentIndex === 0 && !isNext) {
+        state.value.move.y = state.value.move.y * damping
+      } else if (
+        state.value.currentIndex === props.vodList.length - 1 &&
+        isNext
+      ) {
+        state.value.move.y = state.value.move.y * damping
+      }
+    }
+  }
 }
-//
-let slideTimer
-const onTouchEnd = () => {
-  if (!isSliding) return
 
-  isSliding = false
-  const deltaY = slideDistance.value
-  const threshold = 10
-  isAnimating.value = true
-  // 清除之前的定时器
-  if (slideTimer) {
-    clearInterval(slideTimer)
-  }
-  if (deltaY > threshold && currentIndex.value > 0) {
-    slideTimer = setInterval(() => {
-      if (slideDistance.value < 100) {
-        slideDistance.value++
+// 触摸结束
+const onTouchEnd = (e) => {
+  if (!state.value.isDown) return
+
+  state.value.isDown = false
+
+  if (state.value.canSlide) {
+    const isNext = state.value.move.y < 0
+    const canNext = !(
+      (state.value.currentIndex === 0 && !isNext) ||
+      (state.value.currentIndex === props.vodList.length - 1 && isNext)
+    )
+
+    if (canNext) {
+      const endTime = Date.now()
+      let gapTime = endTime - state.value.start.time
+      const distance = Math.abs(state.value.move.y)
+
+      // 判断是否成功滑动
+      if (distance < 20) gapTime = 1000 // 距离太短
+      if (distance > state.value.wrapper.height / 3) gapTime = 100 // 距离够长
+
+      if (gapTime < 150 || distance > state.value.wrapper.height / 3) {
+        // 执行切换：立即改变索引，让视频立即"归位"
+        if (isNext) {
+          state.value.currentIndex++
+        } else {
+          state.value.currentIndex--
+        }
+
+        // 不使用动画，立即重置位置
+        state.value.move.y = 0
+        state.value.isAnimating = false
       } else {
-        slideDistance.value = 0
-        currentIndex.value--
-        clearInterval(slideTimer)
+        // 回弹到原位置
+        state.value.isAnimating = true
+        state.value.move.y = 0
+        // 使用setTimeout确保回弹动画完成
+        setTimeout(() => {
+          state.value.isAnimating = false
+        }, 150)
       }
-    }, 2)
-  } else if (
-    deltaY < -threshold &&
-    currentIndex.value < props.vodList.length - 1
-  ) {
-    console.log('slideDistance.value', slideDistance.value)
-
-    slideTimer = setInterval(() => {
-      if (slideDistance.value > -100) {
-        slideDistance.value--
-      } else {
-        slideDistance.value = 0
-        currentIndex.value++
-        clearInterval(slideTimer)
-      }
-    }, 2)
-
-    // 移除loadMore事件触发，因为player.vue已经完整获取了数据
+    } else {
+      // 在边界时回弹
+      state.value.isAnimating = true
+      state.value.move.y = 0
+      // 使用setTimeout确保回弹动画完成
+      setTimeout(() => {
+        state.value.isAnimating = false
+      }, 150)
+    }
   } else {
-    if (slideDistance.value < 0) {
-      slideTimer = setInterval(() => {
-        if (slideDistance.value < 0) {
-          slideDistance.value++
-        } else {
-          slideDistance.value = 0
-          clearInterval(slideTimer)
-        }
-      }, 2)
-    }
-    if (slideDistance.value > 0) {
-      slideTimer = setInterval(() => {
-        if (slideDistance.value > 0) {
-          slideDistance.value--
-        } else {
-          slideDistance.value = 0
-          clearInterval(slideTimer)
-        }
-      }, 2)
-    }
+    // 如果不是有效滑动，立即重置
+    state.value.move.x = 0
+    state.value.move.y = 0
   }
-  setTimeout(() => {
-    isAnimating.value = false
-  }, 100)
 }
 
-// 自动播放当前视频
-watch(
-  currentIndex,
-  (newIndex) => {
-    setTimeout(() => {
-      console.log('visibleItems', visibleItems.value)
-      console.log('videoRefs', videoRefs.value)
+// 触摸取消
+const onTouchCancel = (e) => {
+  state.value.isDown = false
+  state.value.move.x = 0
+  state.value.move.y = 0
+}
 
-      // 先过滤掉 null 再遍历
-      videoRefs.value.forEach((video, idx) => {
-        if (video && typeof video.pause === 'function') {
+// 设置视频引用 - 使用realIndex作为key
+const setVideoRef = (el, idx) => {
+  const item = visibleItems.value[idx]
+  if (item && el) {
+    // 避免重复设置相同的引用
+    if (videoRefs.value[item.realIndex] !== el) {
+      videoRefs.value[item.realIndex] = el
+      console.log(
+        `Set video ref for realIndex ${item.realIndex}, visibleIdx ${idx}`
+      )
+    }
+  } else if (item && !el) {
+    // 如果元素被销毁，清理引用
+    if (videoRefs.value[item.realIndex]) {
+      delete videoRefs.value[item.realIndex]
+      console.log(`Cleared video ref for realIndex ${item.realIndex}`)
+    }
+  }
+}
+
+// 清理不在可见范围内的视频引用
+const cleanupVideoRefs = () => {
+  const visibleIndexes = visibleItems.value.map((item) =>
+    item.realIndex.toString()
+  )
+  Object.keys(videoRefs.value).forEach((realIdx) => {
+    if (!visibleIndexes.includes(realIdx)) {
+      const video = videoRefs.value[realIdx]
+      if (video && typeof video.pause === 'function') {
+        try {
           video.pause()
-          const realIndex = getItemIndex(idx)
-          playStatus.value[realIndex] = false
+          playStatus.value[realIdx] = false
+        } catch (error) {
+          console.warn(`Failed to pause video ${realIdx}:`, error)
         }
-      })
+      }
+      delete videoRefs.value[realIdx]
+      console.log(`Cleaned up video ref for realIndex ${realIdx}`)
+    }
+  })
+}
 
-      nextTick(() => {
-        const idx = visibleItems.value.findIndex(
-          (_, i) => getItemIndex(i) === newIndex
-        )
-        if (
-          idx !== -1 &&
-          videoRefs.value[idx] &&
-          typeof videoRefs.value[idx].play === 'function'
-        ) {
-          videoRefs.value[idx].play()
-          playStatus.value[newIndex] = true
+// 安全的视频操作函数
+const safeVideoOperation = (realIndex, operation) => {
+  const video = videoRefs.value[realIndex]
+  if (!video) {
+    console.warn(`No video ref found for realIndex ${realIndex}`)
+    return false
+  }
+
+  try {
+    if (operation === 'play' && typeof video.play === 'function') {
+      video.play()
+      playStatus.value[realIndex] = true
+      return true
+    } else if (operation === 'pause' && typeof video.pause === 'function') {
+      video.pause()
+      playStatus.value[realIndex] = false
+      return true
+    }
+  } catch (error) {
+    console.error(`Failed to ${operation} video ${realIndex}:`, error)
+  }
+  return false
+}
+
+// 切换播放状态
+const togglePlay = (idx) => {
+  const item = visibleItems.value[idx]
+  if (!item) return
+
+  const isPlaying = playStatus.value[item.realIndex]
+
+  if (isPlaying) {
+    safeVideoOperation(item.realIndex, 'pause')
+  } else {
+    // 暂停所有其他视频
+    Object.keys(videoRefs.value).forEach((realIdx) => {
+      if (realIdx != item.realIndex) {
+        safeVideoOperation(realIdx, 'pause')
+      }
+    })
+
+    safeVideoOperation(item.realIndex, 'play')
+  }
+}
+
+// 获取wrapper尺寸的函数
+const getWrapperSize = () => {
+  return new Promise((resolve) => {
+    const query = uni.createSelectorQuery()
+    query
+      .select('.slider-wrapper')
+      .boundingClientRect((data) => {
+        if (data && data.width && data.height) {
+          state.value.wrapper.width = data.width
+          state.value.wrapper.height = data.height
+          console.log('Wrapper dimensions set:', data.width, 'x', data.height)
+          resolve(true)
+        } else {
+          console.log('Failed to get wrapper dimensions, retrying...')
+          resolve(false)
         }
       })
-    }, 0)
+      .exec()
+  })
+}
+
+// 播放第一个视频
+const playFirstVideo = async () => {
+  console.log('=== playFirstVideo Debug Info ===')
+  console.log('currentIndex:', state.value.currentIndex)
+  console.log('vodList.length:', props.vodList.length)
+
+  // 确保wrapper高度已设置
+  if (state.value.wrapper.height === 0) {
+    const success = await getWrapperSize()
+    if (!success) {
+      console.warn('Wrapper height still 0, delaying playFirstVideo')
+      setTimeout(() => playFirstVideo(), 200)
+      return
+    }
+  }
+
+  console.log(
+    'visibleItems:',
+    visibleItems.value.map((item) => ({
+      realIndex: item.realIndex,
+      title: item.title || `Video ${item.realIndex}`,
+      offset:
+        (item.realIndex - state.value.currentIndex) *
+        state.value.wrapper.height,
+    }))
+  )
+  console.log('videoRefs keys:', Object.keys(videoRefs.value))
+  console.log('wrapper height:', state.value.wrapper.height)
+
+  const currentRealIndex = state.value.currentIndex
+  const video = videoRefs.value[currentRealIndex]
+
+  console.log(`Looking for video at realIndex ${currentRealIndex}:`, video)
+
+  // 检查当前应该显示的视频是否在视口中
+  const currentItem = visibleItems.value.find(
+    (item) => item.realIndex === currentRealIndex
+  )
+  if (currentItem) {
+    const visibleIdx = visibleItems.value.indexOf(currentItem)
+    const offset =
+      (currentItem.realIndex - state.value.currentIndex) *
+      state.value.wrapper.height
+    console.log(
+      `Current item found at visibleIdx ${visibleIdx}, offset: ${offset}`
+    )
+  } else {
+    console.error(
+      `Current item with realIndex ${currentRealIndex} not found in visibleItems`
+    )
+  }
+
+  if (video && typeof video.play === 'function') {
+    // 暂停所有其他视频
+    Object.keys(videoRefs.value).forEach((realIdx) => {
+      if (realIdx != currentRealIndex) {
+        safeVideoOperation(realIdx, 'pause')
+      }
+    })
+
+    setTimeout(() => {
+      const success = safeVideoOperation(currentRealIndex, 'play')
+      if (success) {
+        console.log(`First video playing at realIndex ${currentRealIndex}`)
+      }
+    }, 150)
+  } else {
+    console.error(`Video ref not found for realIndex ${currentRealIndex}`)
+    // 如果直接找不到，尝试延迟重试
+    setTimeout(() => {
+      const success = safeVideoOperation(currentRealIndex, 'play')
+      if (success) {
+        console.log('Retry successful, playing video')
+      }
+    }, 500)
+  }
+}
+
+// 监听可见项目变化，清理无效引用
+watch(
+  () => visibleItems.value,
+  (newItems, oldItems) => {
+    if (oldItems && oldItems.length > 0) {
+      // 延迟清理，确保新的引用已经设置
+      setTimeout(() => {
+        cleanupVideoRefs()
+      }, 100)
+    }
   },
-  { flush: 'post' }
+  { deep: true }
 )
 
-// 监听视频列表变化，自动播放第一个
+// 监听当前索引变化
+watch(
+  () => state.value.currentIndex,
+  (newIndex) => {
+    console.log(`Index changed to ${newIndex}`)
+
+    // 延迟执行，确保新的视频引用已经设置
+    setTimeout(() => {
+      const video = videoRefs.value[newIndex]
+      console.log(`Video ref for index ${newIndex}:`, video)
+
+      if (video && typeof video.play === 'function') {
+        // 暂停所有其他视频
+        Object.keys(videoRefs.value).forEach((realIdx) => {
+          if (realIdx != newIndex) {
+            safeVideoOperation(realIdx, 'pause')
+          }
+        })
+
+        // 播放当前视频
+        setTimeout(() => {
+          const success = safeVideoOperation(newIndex, 'play')
+          if (success) {
+            console.log(`Playing video at index ${newIndex}`)
+          }
+        }, 50)
+      } else {
+        console.error(`No video ref found for index ${newIndex}`)
+      }
+    }, 150)
+  }
+)
+
+// 监听视频列表变化
 watch(
   () => props.vodList,
-  (newList) => {
-    if (newList.length) setTimeout(() => playFirstVideo(), 10)
+  async (newList, oldList) => {
+    console.log('vodList changed:', newList.length, 'videos')
+    // 只有在从空列表变为有内容时才调用playFirstVideo
+    // 避免与onMounted重复调用
+    if (newList.length > 0 && (!oldList || oldList.length === 0)) {
+      // 确保wrapper已经初始化
+      if (state.value.wrapper.height > 0) {
+        setTimeout(() => {
+          console.log('Calling playFirstVideo from vodList watch')
+          playFirstVideo()
+        }, 800)
+      } else {
+        // 如果wrapper还没初始化，先获取尺寸
+        const success = await getWrapperSize()
+        if (success) {
+          setTimeout(() => {
+            console.log(
+              'Calling playFirstVideo from vodList watch (after getting size)'
+            )
+            playFirstVideo()
+          }, 800)
+        } else {
+          // 如果还是获取不到，等待更长时间
+          setTimeout(async () => {
+            const retrySuccess = await getWrapperSize()
+            if (retrySuccess) {
+              console.log(
+                'Calling playFirstVideo from vodList watch (delayed retry)'
+              )
+              playFirstVideo()
+            }
+          }, 1200)
+        }
+      }
+    }
   },
   { immediate: true }
 )
 
-const playFirstVideo = () => {
-  if (videoRefs.value.length > 0) {
-    // 先过滤掉 null 再遍历
-    videoRefs.value.forEach((video, idx) => {
-      if (video && typeof video.pause === 'function') {
-        video.pause()
-        const realIndex = getItemIndex(idx)
-        playStatus.value[realIndex] = false
-      }
-    })
+// 组件挂载
+onMounted(() => {
+  console.log('Component mounted')
 
-    const idx = visibleItems.value.findIndex(
-      (_, i) => getItemIndex(i) === currentIndex.value
-    )
-    if (
-      idx !== -1 &&
-      videoRefs.value[idx] &&
-      typeof videoRefs.value[idx].play === 'function'
-    ) {
-      videoRefs.value[idx].play()
-      playStatus.value[currentIndex.value] = true
+  const initWrapper = async () => {
+    const success = await getWrapperSize()
+    if (success) {
+      // 如果已经有视频列表，立即尝试播放
+      if (props.vodList.length > 0) {
+        setTimeout(() => {
+          console.log('Calling playFirstVideo from onMounted')
+          playFirstVideo()
+        }, 500)
+      }
+    } else {
+      console.log('Failed to get wrapper size, retrying in 200ms')
+      setTimeout(initWrapper, 200)
     }
   }
-}
 
-// 切换播放/暂停
-const togglePlay = (idx) => {
-  const realIndex = getItemIndex(idx)
-  const video = videoRefs.value[idx]
-
-  if (!video) return
-
-  if (playStatus.value[realIndex]) {
-    video.pause()
-    playStatus.value[realIndex] = false
-  } else {
-    // 先过滤掉 null 再遍历
-    videoRefs.value.forEach((v, i) => {
-      if (v && typeof v.pause === 'function') {
-        v.pause()
-        const rIndex = getItemIndex(i)
-        playStatus.value[rIndex] = false
-      }
-    })
-
-    video.play()
-    playStatus.value[realIndex] = true
-  }
-}
-
-// 组件挂载后初始化
-onMounted(() => {
-  // 初始化播放状态，使用nextTick确保DOM已完全渲染
   nextTick(() => {
-    playFirstVideo()
+    initWrapper()
   })
 })
 
-// 暴露方法给父组件
+// 设置当前索引
+const setCurrentIndex = (index) => {
+  if (index >= 0 && index < props.vodList.length) {
+    state.value.currentIndex = index
+  }
+}
+
+// 暴露方法
 defineExpose({
   playFirstVideo,
-  getItemIndex,
+  currentIndex: computed(() => state.value.currentIndex),
+  setCurrentIndex,
   togglePlay,
-  currentIndex,
 })
-
-// 用函数式 ref 绑定
-function setVideoRef(el, idx) {
-  videoRefs.value[idx] = el || null
-}
 </script>
 
 <style lang="scss" scoped>
@@ -310,43 +581,8 @@ function setVideoRef(el, idx) {
     left: 0;
     width: 100%;
     height: 100%;
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-      opacity 1s ease;
-    will-change: transform, opacity;
+    will-change: transform;
     backface-visibility: hidden;
-  }
-
-  .video-info {
-    position: absolute;
-    bottom: 80rpx;
-    left: 30rpx;
-    right: 30rpx;
-    color: #fff;
-    z-index: 10;
-
-    .video-title {
-      font-size: 32rpx;
-      margin-bottom: 20rpx;
-      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
-    }
-
-    .video-controls {
-      display: flex;
-      align-items: center;
-
-      .play-btn {
-        width: 80rpx;
-        height: 80rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        .control-icon {
-          width: 60rpx;
-          height: 60rpx;
-        }
-      }
-    }
   }
 
   .loading {

@@ -46,24 +46,39 @@ const plarPlayerRef = ref(null)
 
 // 初始化视频上下文
 onMounted(() => {
-  // #ifdef H5
-  videoContext.value = plarPlayerRef.value
-  // #endif
-  // #ifndef H5
-  videoContext.value = uni.createVideoContext(props.videoId)
-  // #endif
+  // 延迟初始化，确保DOM已完全渲染
+  setTimeout(() => {
+    // #ifdef H5
+    videoContext.value = plarPlayerRef.value
+    // #endif
+    // #ifndef H5
+    videoContext.value = uni.createVideoContext(props.videoId)
+    // #endif
+    console.log(
+      'VideoPlayer initialized, videoId:',
+      props.videoId,
+      'context:',
+      videoContext.value
+    )
+  }, 100)
 })
 
 // 视频方法
 const play = () => {
+  console.log('VideoPlayer play called, videoContext:', videoContext.value)
   if (videoContext.value) {
     videoContext.value.play()
+  } else {
+    console.error('VideoContext not available for play')
   }
 }
 
 const pause = () => {
+  console.log('VideoPlayer pause called, videoContext:', videoContext.value)
   if (videoContext.value) {
     videoContext.value.pause()
+  } else {
+    console.error('VideoContext not available for pause')
   }
 }
 

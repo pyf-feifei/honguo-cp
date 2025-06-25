@@ -109,7 +109,6 @@ onLoad((query) => {
   bookName.value = query.bookName
     ? decodeURIComponent(query.bookName)
     : '未知剧名'
-  console.log('bookName.value', bookName.value)
 
   fetchVodList()
 })
@@ -126,7 +125,6 @@ const fetchVodList = async () => {
       )}`,
       method: 'GET',
     })
-    console.log('res', res)
 
     if (res.data?.list?.length) {
       // 解析分集
@@ -135,7 +133,6 @@ const fetchVodList = async () => {
         const [title, url] = item.split('$')
         return { title, url, vodPic: vod.vod_pic }
       })
-      console.log('newEpisodes', newEpisodes)
 
       // 添加到现有列表，避免重复
       if (vodList.value.length === 0) {
@@ -143,7 +140,6 @@ const fetchVodList = async () => {
         // 首次加载数据后，使用nextTick确保DOM已更新，然后尝试播放第一个视频
         setTimeout(() => {
           if (videoSliderRef.value) {
-            console.log('调用VideoSlider组件的playFirstVideo方法')
             videoSliderRef.value.playFirstVideo()
           }
         }, 500)
@@ -160,9 +156,8 @@ const fetchVodList = async () => {
 onMounted(() => {
   // onLoad已经处理了数据加载，这里可以添加其他初始化逻辑
   uni.$on('commentPopup-selected', (e) => {
-    console.log('选中某一集', e) // 打印完整的 e 对象
-    if (e && e.index) {
-      videoSliderRef.value.currentIndex = e.index
+    if (e && e.index && videoSliderRef.value) {
+      videoSliderRef.value.setCurrentIndex(e.index)
       const subNVue = uni.getSubNVueById('scommentPopup')
       if (subNVue) {
         subNVue.hide('auto')
