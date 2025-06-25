@@ -25,14 +25,20 @@
         <VideoPlayer
           :src="item.url"
           :videoId="`video-${item.realIndex}`"
+          :loading="videoLoadingStatus[item.realIndex]"
           :controls="false"
           :loop="true"
           :show-fullscreen-btn="false"
           :show-play-btn="false"
+          :show-center-play-btn="false"
           :enable-progress-gesture="false"
           :object-fit="'contain'"
           :show-loading="false"
+          poster=""
           @click="togglePlay(idx)"
+          @loadstart="onVideoLoadStart(item.realIndex)"
+          @canplay="onVideoCanPlay(item.realIndex)"
+          @error="onVideoError(item.realIndex)"
           :ref="(el) => setVideoRef(el, idx)"
         />
       </view>
@@ -64,6 +70,7 @@ const state = ref({
 const sliderWrapper = ref(null)
 const videoRefs = ref({}) // 改为对象，使用realIndex作为key
 const playStatus = ref({})
+const videoLoadingStatus = ref({}) // 单个视频的加载状态
 const virtualTotal = 5 // 虚拟列表总数
 const judgeValue = 20 // 判断滑动的最小距离
 
@@ -333,6 +340,22 @@ const togglePlay = (idx) => {
 
     safeVideoOperation(item.realIndex, 'play')
   }
+}
+
+// 视频加载事件处理
+const onVideoLoadStart = (realIndex) => {
+  console.log(`Video ${realIndex} started loading`)
+  videoLoadingStatus.value[realIndex] = true
+}
+
+const onVideoCanPlay = (realIndex) => {
+  console.log(`Video ${realIndex} can play`)
+  videoLoadingStatus.value[realIndex] = false
+}
+
+const onVideoError = (realIndex) => {
+  console.log(`Video ${realIndex} load error`)
+  videoLoadingStatus.value[realIndex] = false
 }
 
 // 获取wrapper尺寸的函数

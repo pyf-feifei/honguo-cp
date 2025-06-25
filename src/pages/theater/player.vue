@@ -1,7 +1,8 @@
 <template>
   <view class="player-container">
     <VideoSlider ref="videoSliderRef" :vodList="vodList" :loading="loading">
-      <!-- <template v-slot:default="{ item, idx }">
+    </VideoSlider>
+    <!-- <template v-slot:default="{ item, idx }">
         <cover-view class="side-actions">
           <cover-view class="action-item">
             <cover-view class="action-icon like" @click="handleLike">
@@ -52,7 +53,6 @@
           </cover-view>
         </cover-view>
       </template> -->
-    </VideoSlider>
   </view>
 </template>
 

@@ -11,6 +11,11 @@
     <!-- #ifndef H5 -->
     <video :id="videoId" :src="src" v-bind="attrs" class="video-player">
       <slot></slot>
+      <cover-image
+        :src="'/static/theater/loadaing.gif'"
+        class="video-loading-icon"
+        v-if="loading"
+      ></cover-image>
     </video>
     <!-- #endif -->
   </view>
@@ -35,6 +40,10 @@ const props = defineProps({
   videoId: {
     type: String,
     default: 'videoPlayer',
+  },
+  loading: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -117,6 +126,17 @@ defineExpose({
     background: #000;
     object-fit: contain;
     position: relative;
+  }
+
+  .video-loading-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    pointer-events: none;
+    width: 160rpx;
+    height: 160rpx;
   }
 }
 </style>
