@@ -26,21 +26,13 @@
           :src="item.url"
           :videoId="`video-${item.realIndex}`"
           :loading="getVideoLoadingStatus(item.realIndex)"
-          :controls="false"
-          :loop="true"
-          :show-fullscreen-btn="false"
-          :show-play-btn="false"
-          :show-center-play-btn="false"
-          :enable-progress-gesture="false"
-          :object-fit="'contain'"
-          :show-loading="false"
-          poster=""
-          @click="togglePlay(idx)"
-          @loadstart="onVideoLoadStart(item.realIndex)"
+          @loadedmetadata="onVideoLoadedMetadata(item.realIndex)"
           @canplay="onVideoCanPlay(item.realIndex)"
           @play="onVideoPlay(item.realIndex)"
+          @pause="onVideoPause(item.realIndex)"
           @playing="onVideoPlaying(item.realIndex)"
-          @loadeddata="onVideoLoadedData(item.realIndex)"
+          @waiting="onVideoWaiting(item.realIndex)"
+          @progress="onVideoProgress(item.realIndex)"
           @error="onVideoError(item.realIndex)"
           :ref="(el) => setVideoRef(el, idx)"
         />
@@ -135,6 +127,7 @@ const getItemStyle = (idx) => {
 // 获取视频loading状态
 const getVideoLoadingStatus = (realIndex) => {
   const status = videoLoadingStatus[realIndex]
+  console.log('status', status)
   return status || false
 }
 
@@ -230,12 +223,8 @@ const onTouchEnd = (e) => {
         }
 
         // 不使用动画，立即重置位置
-        // state.value.move.y = 0
-        state.value.isAnimating = true
-        setTimeout(() => {
-          state.value.isAnimating = false
-          state.value.move.y = 0
-        }, 150)
+        state.value.move.y = 0
+        state.value.isAnimating = false
       } else {
         // 回弹到原位置
         state.value.isAnimating = true
@@ -340,49 +329,53 @@ const safeVideoOperation = (realIndex, operation) => {
   return false
 }
 
-// 切换播放状态
-const togglePlay = (idx) => {
-  const item = visibleItems.value[idx]
-  if (!item) return
-
-  const isPlaying = playStatus.value[item.realIndex]
-
-  if (isPlaying) {
-    safeVideoOperation(item.realIndex, 'pause')
-  } else {
-    // 暂停所有其他视频
-    Object.keys(videoRefs.value).forEach((realIdx) => {
-      if (realIdx != item.realIndex) {
-        safeVideoOperation(realIdx, 'pause')
-      }
-    })
-
-    safeVideoOperation(item.realIndex, 'play')
-  }
-}
-
 // 视频加载事件处理
-const onVideoLoadStart = (realIndex) => {
+const onVideoLoadedMetadata = (realIndex) => {
+  console.log('onVideoLoadedMetadata', realIndex)
   videoLoadingStatus[realIndex] = true
 }
 
 const onVideoCanPlay = (realIndex) => {
+  console.log('onVideoCanPlay', realIndex)
   videoLoadingStatus[realIndex] = false
+}
+
+const onVideoPause = (realIndex) => {
+  console.log('onVideoPause', realIndex)
+  playStatus.value[realIndex] = false
 }
 
 const onVideoPlay = (realIndex) => {
+  console.log('onVideoPlay', realIndex)
   videoLoadingStatus[realIndex] = false
+  playStatus.value[realIndex] = true
+
+  // 暂停所有其他视频
+  Object.keys(videoRefs.value).forEach((realIdx) => {
+    if (realIdx != realIndex) {
+      safeVideoOperation(realIdx, 'pause')
+    }
+  })
 }
 
 const onVideoPlaying = (realIndex) => {
+  console.log('onVideoPlaying', realIndex)
   videoLoadingStatus[realIndex] = false
+  playStatus.value[realIndex] = true
 }
 
-const onVideoLoadedData = (realIndex) => {
-  videoLoadingStatus[realIndex] = false
+const onVideoWaiting = (realIndex) => {
+  console.log('onVideoWaiting', realIndex)
+  videoLoadingStatus[realIndex] = true
+}
+
+const onVideoProgress = (realIndex) => {
+  console.log('onVideoProgress', realIndex)
+  // progress事件表示正在加载，可以根据需要设置loading状态
 }
 
 const onVideoError = (realIndex) => {
+  console.log('onVideoError', realIndex)
   videoLoadingStatus[realIndex] = false
 }
 
@@ -634,7 +627,6 @@ defineExpose({
   playFirstVideo,
   currentIndex: computed(() => state.value.currentIndex),
   setCurrentIndex,
-  togglePlay,
 })
 </script>
 
