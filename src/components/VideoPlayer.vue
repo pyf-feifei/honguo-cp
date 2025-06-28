@@ -259,7 +259,7 @@ defineExpose({
     width: 100%;
     height: 100%;
     background: #000;
-    object-fit: contain;
+    object-fit: contain; /* 保持比例 */
   }
 
   .click-overlay {
