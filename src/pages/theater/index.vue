@@ -130,7 +130,7 @@ export default {
     },
     goToPlayer(book) {
       uni.navigateTo({
-        url: `/src/pages/theater/player?bookName=${encodeURIComponent(
+        url: `/src/pages/theater/player-n?bookName=${encodeURIComponent(
           book.bookName
         )}&introduction=${encodeURIComponent(book.introduction)}`,
       })
