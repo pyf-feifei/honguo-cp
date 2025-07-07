@@ -34,7 +34,7 @@ export const bookType = [
 export const books = [
   {
     bookId: '41000116278',
-    bookName: '我爱的人，伤我最深',
+    bookName: '我爱的人伤我最深',
     coverWap:
       'https://seoali.zqkanshu.com/cppartner/4x1/41x0/410x0/41000116278/41000116278.jpg?t=202101010000&imageView2/0/w/200/h/267',
     introduction:
