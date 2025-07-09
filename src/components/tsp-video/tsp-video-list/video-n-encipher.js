@@ -420,7 +420,7 @@ export default {
             this.vodList[this.vodIndex].pauseShow = true
 
             this.$nextTick(() => {
-              this.addAnimation('pauseAddList', this.pauseNum, this.pauseRef)
+              this.addAnimation('pauseRef', this.pauseAddList, this.pauseNum)
             })
           }
         }, 200)
@@ -787,8 +787,9 @@ export default {
         this.vodList[index].pauseShow = true
         // 在下一个DOM更新周期执行动画
         this.$nextTick(() => {
-          this.addAnimation('pauseRef', this.pauseNum, this.pauseAddList)
+          this.addAnimation('pauseRef', this.pauseAddList, this.pauseNum)
         })
+        this.moveOpacity = false // 确保暂停时UI可见
       } else {
         // 如果未播放，则播放视频
         this.videoPlay(index)
@@ -808,6 +809,7 @@ export default {
       vodInfo.pauseShow = false
       this.$set(this.vodList, index, vodInfo)
       this.brightSlider = false
+      this.moveOpacity = false // 确保播放时UI可见
 
       const videoId = 'myVideo' + index + this.swId
       console.log('准备播放视频ID:', videoId)
@@ -1675,21 +1677,15 @@ export default {
     },
     /* 滑动结束的坐标 */
     vodViewEnd(ev) {
-      console.log('=== vodViewEnd 滑动结束 ===')
-      console.log('moveOpacity 设置为 true')
-      this.moveOpacity = true
-      console.log('startPlayVod 设置为 true')
-      this.startPlayVod = true // 关键修复：滑动结束时设置为true
+      this.moveOpacity = false
+      this.startPlayVod = true
       this.vodViewStart()
-
       if (!this.changeTime) {
         this.changeTime = setTimeout(() => {
           this.changeVod = this.changeIndex != this.vodIndex ? true : false
           this.changeTime = null
-        }, 300) // 300毫秒 = 0x12c
+        }, 300)
       }
-
-      console.log('=== vodViewEnd 结束 ===')
     },
     /* loading进度加载动画 */
     loadingSliderShow() {
