@@ -84,8 +84,8 @@ export default {
       bookName: '',
       loading: false,
       autoplay: true, //初始加载完成是否自动播放
-      nextPlay: false, //是否开启自动播放
-      loopPlay: true, //是否循环播放
+      nextPlay: true, //是否开启自动播放
+      loopPlay: false, //是否循环播放
     }
   },
   onLoad(options) {
