@@ -216,6 +216,8 @@ export default {
     },
     /* 初始加载视频 */
     initVod(dataList, index) {
+      console.log('dataList', dataList)
+
       this.autoplayVideo = this.autoplay
 
       let playIndex = index ? index : 0
@@ -231,6 +233,7 @@ export default {
       this.vodList = dataList
       this.contentShow = dataList.length > 0 ? true : false
       this.vodIndex = playIndex
+      console.log('this.vodList', this.vodList)
 
       setTimeout(() => {
         if (playIndex > 0) {

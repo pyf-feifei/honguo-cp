@@ -145,10 +145,6 @@ export default {
         if (res.data?.list?.length) {
           // 解析分集
           const vod = res.data.list[0]
-          console.log('原始 vod_play_url:', vod.vod_play_url)
-          console.log('vod_play_from:', vod.vod_play_from)
-          console.log('vod_play_server:', vod.vod_play_server)
-          console.log('vod_play_note:', vod.vod_play_note)
 
           // 获取线路分隔符，如果vod_play_note为空，则默认使用'$$$'
           const lineDelimiter = vod.vod_play_note || '$$$'
