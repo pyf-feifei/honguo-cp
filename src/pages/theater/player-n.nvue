@@ -112,6 +112,12 @@ export default {
       this.$refs.videoGroup.muteVideo(true) //视频播放设置为静音，解决切换到其他页面后因为网络问题还在有声音播放
     }
   },
+  onUnload() {
+    /* 页面卸载时销毁视频上下文 */
+    if (this.$refs.videoGroup) {
+      this.$refs.videoGroup.destroyAllVideos()
+    }
+  },
   watch: {
     tabIndex(val) {
       //tab栏切换监听操作

@@ -45,7 +45,7 @@
             </view>
             <view
               class="vodPlayer"
-              v-if="Math.abs(vodIndex - index) <= 2"
+              v-if="Math.abs(vodIndex - index) <= 5"
               :style="{ opacity: appoint ? 0 : 1 }"
             >
               <video
@@ -72,6 +72,8 @@
                 @timeupdate="timeupdateVod($event, index)"
                 @error="errVod(index)"
                 @ended="endedVod(index)"
+                play-strategy="2"
+                preload="auto"
               ></video>
             </view>
             <!-- 视频封面-->

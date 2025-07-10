@@ -368,30 +368,44 @@ export default {
 
       this.muteVideo(false)
 
-      const videoContext = uni.createVideoContext(
+      // 播放当前视频
+      const currentVideoContext = uni.createVideoContext(
         'myVideo' + newIndex + this.swId,
         this
       )
 
-      if (videoContext) {
-        videoContext.pause()
+      if (currentVideoContext) {
+        currentVideoContext.pause() // 先暂停，确保从头播放或正确状态
         this.shakePlay = false
         this.vodList[newIndex].vodPaly = true
-        this.videoPlay(newIndex)
+        this.videoPlay(newIndex) // 播放当前视频
       }
 
-      if (
-        this.vodList[newIndex + 1] &&
-        Math.abs(newIndex + 1 - newIndex) <= 1
-      ) {
-        const nextVideoContext = uni.createVideoContext(
-          'myVideo' + (newIndex + 1) + this.swId,
-          this
-        )
-        if (nextVideoContext) {
-          nextVideoContext.play()
+      // 预加载前后两个视频
+      const preloadRange = 5 // 预加载范围：当前视频的前后各5个
+      this.$nextTick(() => {
+        for (
+          let i = newIndex - preloadRange;
+          i <= newIndex + preloadRange;
+          i++
+        ) {
+          if (i >= 0 && i < this.vodList.length && i !== newIndex) {
+            // 确保索引有效且不是当前视频
+            const preloadVideoContext = uni.createVideoContext(
+              'myVideo' + i + this.swId,
+              this
+            )
+            if (preloadVideoContext) {
+              console.log('preloadVideoContext', preloadVideoContext) // 打印 videoContext 的 id
+              // 尝试 seek(0) 来强制视频上下文初始化并开始加载数据
+              preloadVideoContext.seek(0)
+              // 接着调用 play() 来确保加载，因为视频是静音的，不会有声音
+              preloadVideoContext.play()
+              preloadVideoContext.pause()
+            }
+          }
         }
-      }
+      })
 
       this.shakePlay = false
     },
@@ -450,7 +464,6 @@ export default {
         clearInterval(this.failTime)
         this.playOpen = false
       }
-
       if (this.vodList[index + 1] && Math.abs(index + 1 - index) <= 1) {
         uni
           .createVideoContext('myVideo' + (index + 1) + this.swId, this)
@@ -755,6 +768,22 @@ export default {
     /* 视频点赞、关注 */
     fabulousBtn(data) {
       this.$set(this.vodList, data.index, data.obj)
+    },
+    /* 销毁所有视频上下文 */
+    destroyAllVideos() {
+      this.vodList.forEach((item, index) => {
+        const videoId = 'myVideo' + index + this.swId
+        const videoContext = uni.createVideoContext(videoId, this)
+        if (videoContext) {
+          videoContext.stop() // 停止播放
+          // uni-app的videoContext没有明确的destroy方法，stop()通常会释放大部分资源
+          // 对于nvue，如果需要更彻底的销毁，可能需要考虑更底层的原生API，但这超出了uni-app的封装范围
+        }
+      })
+      this.vodList = [] // 清空视频列表数据
+      this.videoData = [] // 清空视频数据
+      this.contentShow = false // 隐藏内容
+      console.log('所有视频上下文已尝试停止并清理。')
     },
   },
 }
