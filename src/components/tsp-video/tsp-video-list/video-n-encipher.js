@@ -168,27 +168,13 @@ export default {
   },
   watch: {
     vodIndex(newIndex, oldIndex) {
-      console.log(
-        '=== vodIndex watch 触发 ===',
-        'newIndex:',
-        newIndex,
-        'oldIndex:',
-        oldIndex
-      )
-      console.log('contentShow:', this.contentShow)
-      console.log('autoplayVideo:', this.autoplayVideo)
-      console.log('appoint:', this.appoint)
-
       if (!this.contentShow) {
-        console.log('contentShow为false，直接返回')
         return
       }
 
-      console.log('调用resetData')
       this.resetData()
 
       if (oldIndex >= 0 && !this.appoint) {
-        console.log('处理旧视频, oldIndex:', oldIndex)
         this.vodList[oldIndex].coverOpacity = this.vodList[oldIndex].coverShow
           ? true
           : false
@@ -197,60 +183,36 @@ export default {
         this.vodList[oldIndex].loadingShow = false
 
         const oldVideoId = 'myVideo' + oldIndex + this.swId
-        console.log('暂停旧视频:', oldVideoId)
         uni.createVideoContext(oldVideoId, this).pause()
       }
 
       this.$nextTick(() => {
-        console.log('$nextTick 执行')
         this.changeVod = false
         if (this.autoplayVideo) {
-          console.log('自动播放开启，调用swiperVod, newIndex:', newIndex)
           this.autoplayVideo = true
           this.swiperVod(newIndex)
-        } else {
-          console.log('自动播放关闭')
         }
       })
-
-      console.log('=== vodIndex watch 结束 ===')
     },
   },
 
   methods: {
     /* 滚动监听 */
     scrolls(ev) {
-      console.log('=== scrolls 滚动监听 ===')
-      console.log('contentOffset.y:', ev.contentOffset.y)
-      console.log('vodHeight:', this.vodHeight)
-      console.log('isDragging:', ev.isDragging)
-
       clearTimeout(this.timeout)
       this.speedHide = true
       let index = Math.round(Math.abs(ev.contentOffset.y) / this.vodHeight)
 
-      console.log('计算出的index:', index)
-      console.log('当前vodIndex:', this.vodIndex)
-      console.log('startPlayVod:', this.startPlayVod)
-
       this.changeIndex = index
       this.moveOpacity = ev.isDragging
       this.timeout = setTimeout(() => {
-        console.log('timeout执行, 设置currentIndex:', index)
         this.currentIndex = index
         this.speedHide = false
         this.shakePlay = true
         if (this.startPlayVod && index != this.vodIndex) {
-          console.log('条件满足，切换vodIndex从', this.vodIndex, '到', index)
           this.vodIndex = index
-        } else {
-          console.log('不满足切换条件')
-          console.log('startPlayVod:', this.startPlayVod)
-          console.log('index != vodIndex:', index != this.vodIndex)
         }
       }, 100)
-
-      console.log('=== scrolls 结束 ===')
     },
     /* 初始加载视频 */
     initVod(dataList, index) {
@@ -369,11 +331,6 @@ export default {
     },
     /* 播放视频 */
     videoPlay(index) {
-      console.log('=== videoPlay 开始 ===', 'index:', index)
-      console.log('vodList[index]:', this.vodList[index])
-      console.log('vodList[index].vodUrl:', this.vodList[index]?.vodUrl)
-      console.log('vodList[index].tspId:', this.vodList[index]?.tspId)
-
       let vodInfo = Object.assign({}, this.vodList[index])
       vodInfo.vodPaly = true
       vodInfo.pauseShow = false
@@ -382,20 +339,11 @@ export default {
       this.moveOpacity = false
 
       const videoId = 'myVideo' + index + this.swId
-      console.log('准备播放视频ID:', videoId)
-
       const videoContext = uni.createVideoContext(videoId, this)
-      console.log('videoContext是否存在:', !!videoContext)
 
       if (videoContext) {
-        console.log('调用视频播放')
         videoContext.play()
-        console.log('视频播放调用完成')
-      } else {
-        console.log('视频上下文创建失败!')
       }
-
-      console.log('=== videoPlay 结束 ===')
     },
     /* 暂停视频 */
     videoPause(index) {
@@ -410,10 +358,6 @@ export default {
     },
     /* 播放视频 */
     swiperVod(newIndex) {
-      console.log('=== swiperVod 开始 ===', 'newIndex:', newIndex)
-      console.log('vodList长度:', this.vodList.length)
-      console.log('当前vodIndex:', this.vodIndex)
-
       clearInterval(this.failTime)
       setTimeout(() => {
         clearTimeout(this.checkTime)
@@ -425,25 +369,18 @@ export default {
         'myVideo' + newIndex + this.swId,
         this
       )
-      console.log('视频上下文ID:', 'myVideo' + newIndex + this.swId)
-      console.log('视频上下文是否存在:', !!videoContext)
 
       if (videoContext) {
-        console.log('暂停当前视频并设置播放状态')
         videoContext.pause()
         this.shakePlay = false
         this.vodList[newIndex].vodPaly = true
-        console.log('调用videoPlay方法, index:', newIndex)
         this.videoPlay(newIndex)
-      } else {
-        console.log('视频上下文不存在!')
       }
 
       if (
         this.vodList[newIndex + 1] &&
         Math.abs(newIndex + 1 - newIndex) <= 1
       ) {
-        console.log('预加载下一个视频, index:', newIndex + 1)
         const nextVideoContext = uni.createVideoContext(
           'myVideo' + (newIndex + 1) + this.swId,
           this
@@ -454,7 +391,6 @@ export default {
       }
 
       this.shakePlay = false
-      console.log('=== swiperVod 结束 ===')
     },
     /* 当开始/继续播放时 */
     startPlay(index) {
@@ -555,47 +491,16 @@ export default {
     },
     /* 视频播放结束 */
     endedVod(index) {
-      console.log('=== endedVod 视频播放结束 ===', 'index:', index)
-      console.log('当前vodIndex:', this.vodIndex)
-      console.log('nextPlay属性:', this.nextPlay)
-      console.log('是否匹配当前索引:', this.vodIndex == index)
-
       if (this.vodIndex == index && this.nextPlay) {
-        console.log('满足自动播放下一个视频的条件')
-        console.log(
-          '准备切换到下一个视频, 当前索引:',
-          this.vodIndex,
-          '下一个索引:',
-          this.vodIndex + 1
-        )
-
         this.vodIndex += 1
 
-        console.log('新的vodIndex:', this.vodIndex)
-        console.log('下一个视频元素ID:', 'myVideo' + this.vodIndex + this.swId)
-
         const nextVideoRef = 'myVideo' + this.vodIndex + this.swId
-        console.log('查找元素引用:', nextVideoRef)
 
         if (this.$refs[nextVideoRef] && this.$refs[nextVideoRef][0]) {
           let el = this.$refs[nextVideoRef][0]
-          console.log('找到下一个视频元素，准备滚动')
           dom.scrollToElement(el, { offset: 0, animated: true })
-          console.log('滚动调用完成')
-        } else {
-          console.log('未找到下一个视频元素!', this.$refs[nextVideoRef])
-        }
-      } else {
-        console.log('不满足自动播放条件')
-        if (this.vodIndex != index) {
-          console.log('索引不匹配, 当前:', this.vodIndex, '传入:', index)
-        }
-        if (!this.nextPlay) {
-          console.log('nextPlay为false，未开启自动播放')
         }
       }
-
-      console.log('=== endedVod 结束 ===')
     },
     // 根据秒获取时间
     formatSeconds(a) {
@@ -670,10 +575,7 @@ export default {
       // #ifdef APP-NVUE
       this.moveClientY = ev.changedTouches[0].screenY - this.touchClientY
       // #endif
-      console.log('=== vodViewMove 滑动中 ===')
-      console.log('startPlayVod 设置为 false')
       this.startPlayVod = false
-      console.log('=== vodViewMove 结束 ===')
     },
     /* 滑动结束的坐标 */
     vodViewEnd(ev) {
