@@ -145,7 +145,27 @@ export default {
         if (res.data?.list?.length) {
           // 解析分集
           const vod = res.data.list[0]
-          const newEpisodes = vod.vod_play_url.split('#').map((item, index) => {
+          console.log('原始 vod_play_url:', vod.vod_play_url)
+          console.log('vod_play_from:', vod.vod_play_from)
+          console.log('vod_play_server:', vod.vod_play_server)
+          console.log('vod_play_note:', vod.vod_play_note)
+
+          // 获取线路分隔符，如果vod_play_note为空，则默认使用'$$$'
+          const lineDelimiter = vod.vod_play_note || '$$$'
+          const playFroms = vod.vod_play_from.split(lineDelimiter)
+          const playUrlsByLine = vod.vod_play_url.split(lineDelimiter)
+
+          let selectedPlayUrl = ''
+          // 尝试根据vod_play_from选择线路，默认选择第一个
+          if (playFroms.length > 0 && playUrlsByLine.length > 0) {
+            // 假设我们总是选择第一个线路，或者可以根据用户偏好/线路质量进行选择
+            selectedPlayUrl = playUrlsByLine[0]
+          } else {
+            // 如果没有多线路信息，直接使用原始vod_play_url
+            selectedPlayUrl = vod.vod_play_url
+          }
+
+          const newEpisodes = selectedPlayUrl.split('#').map((item, index) => {
             const [title, url] = item.split('$')
             return {
               id: index,
@@ -171,6 +191,8 @@ export default {
               },
             }
           })
+          console.log('解析后的 newEpisodes 长度:', newEpisodes.length)
+          console.log('newEpisodes:', newEpisodes)
 
           this.vodList = newEpisodes
           this.videoData = newEpisodes
