@@ -45,7 +45,7 @@
             </view>
             <view
               class="vodPlayer"
-              v-if="Math.abs(vodIndex - index) <= 5"
+              v-if="Math.abs(vodIndex - index) <= 3"
               :style="{ opacity: appoint ? 0 : 1 }"
             >
               <video

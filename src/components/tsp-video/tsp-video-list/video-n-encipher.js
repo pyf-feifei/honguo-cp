@@ -382,7 +382,7 @@ export default {
       }
 
       // 预加载前后两个视频
-      const preloadRange = 5 // 预加载范围：当前视频的前后各5个
+      const preloadRange = 3 // 预加载范围：当前视频的前后各5个
       this.$nextTick(() => {
         for (
           let i = newIndex - preloadRange;
