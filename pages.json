@@ -104,7 +104,9 @@
   "easycom": {
     "autoscan": true,
     "custom": {
-      "^u-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+      "^u-(.*)": "uview-plus/components/u-$1/u-$1.vue",
+      "up-list": "uview-plus/components/up-list/up-list.vue",
+      "up-list-item": "uview-plus/components/up-list-item/up-list-item.vue"
     }
   }
 }
