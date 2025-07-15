@@ -151,12 +151,12 @@ export default {
   },
   created() {
     const deviceInfo = uni.getSystemInfoSync()
-    let topBarHeight = this.showBarHeight ? deviceInfo.statusBarHeight : 0x0
+    let topBarHeight = this.showBarHeight ? deviceInfo.statusBarHeight : 0
     this.videoStyle.statusBarHeight = topBarHeight + 'px'
     this.videoStyle.width = deviceInfo.screenWidth + 'px'
     this.screenWidth = deviceInfo.screenWidth
     this.screenHeight = deviceInfo.screenHeight
-    if (this.tabBarShow == 0x1) {
+    if (this.tabBarShow == 1) {
       this.videoStyle.height =
         deviceInfo.screenHeight - topBarHeight - this.tabBarHeight + 'px'
       this.vodHeight =
