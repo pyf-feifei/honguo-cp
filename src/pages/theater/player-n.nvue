@@ -38,7 +38,7 @@
  * nvue 可引用两个版本做兼容
  */
 // #ifdef APP-NVUE
-import twVideon from '@/src/components/tsp-video/tsp-video-list/video-n.nvue'
+import twVideon from '@/src/components/tsp-video/tsp-video-list/video-n copy.nvue'
 // #endif
 
 // #ifndef APP-NVUE
@@ -176,7 +176,7 @@ export default {
               src: url,
               coverImg: vod.vod_pic,
               // #ifdef APP-NVUE
-              coverShow: true, //是否显示视频封面，vue 小程序端不播放会显示视频，可以不用显示封面，App不播放不会显示视频，就需要封面了
+              coverShow: false, //是否显示视频封面，vue 小程序端不播放会显示视频，可以不用显示封面，App不播放不会显示视频，就需要封面了
               // #endif
               // #ifndef APP-NVUE
               coverShow: false, //是否显示视频封面，vue 小程序端不播放会显示视频，可以不用显示封面，App不播放不会显示视频，就需要封面了
@@ -234,6 +234,8 @@ export default {
 
     /* 下拉刷新 */
     refreshData() {
+      console.log('下拉刷新，最外层')
+
       /* 重新获取数据 */
       this.vodList = []
       this.videoData = []
@@ -255,6 +257,7 @@ export default {
 
     /* 上拉加载 */
     loadingData() {
+      console.log('上拉加载，最外层')
       /* 这里可以实现分页加载更多数据 */
       // 由于当前接口返回的是单个视频的所有集数，暂时返回空数组
       // 如果需要加载更多，可以请求不同的关键词或实现分页逻辑
