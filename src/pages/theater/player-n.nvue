@@ -38,10 +38,12 @@
  * nvue 可引用两个版本做兼容
  */
 // #ifdef APP-NVUE
+console.log('twVideon进入了')
 import twVideon from '@/src/components/tsp-video/tsp-video-list/video-n copy.nvue'
 // #endif
 
 // #ifndef APP-NVUE
+console.log('twVideov进入了')
 import twVideov from '@/src/components/tsp-video/tsp-video-list/video-v.vue'
 // #endif
 
@@ -141,8 +143,14 @@ export default {
 
       this.loading = true
       try {
+        // #ifdef H5
+        const baseUrl = '/api'
+        // #endif
+        // #ifndef H5
+        const baseUrl = 'https://cj.rycjapi.com'
+        // #endif
         const res = await uni.request({
-          url: `https://cj.rycjapi.com/api.php/provide/vod?ac=videolist&wd=${decodeURIComponent(
+          url: `${baseUrl}/api.php/provide/vod?ac=videolist&wd=${decodeURIComponent(
             this.bookName
           )}`,
           method: 'GET',
