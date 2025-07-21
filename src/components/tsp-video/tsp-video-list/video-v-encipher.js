@@ -142,8 +142,6 @@ export default {
       moveClientY: 0, //移动的坐标
       moveOpacity: false, //是否透明
       refreshShow: false, //是否显示下拉刷新
-      refreshOpacity: 0, //下拉刷新的透明度
-      refreshclientY: 0, //下拉刷新的坐标
       refreshOpen: false, //下拉刷新的触发条件
       playErrTime: null,
       interceptIndex: [],
@@ -152,6 +150,7 @@ export default {
       loadStart: false,
       muteSetup: false, //是否设置为静音
       manuallyPaused: false,
+      lastClickTime: 0, // 上次点击时间，用于防抖
       hlsInstance: null, //HLS播放器实例
       /* 双击点赞部分 */
       lastTapDiffTime: 0, //上次点击时间
@@ -374,14 +373,62 @@ export default {
     },
     /* 重新加载 */
     refreshSquare(dataList, index) {
-      // 还原后的代码
+      // 当父组件调用这个方法时，说明数据已经准备好了，可以关闭刷新状态
       let playIndex = index ? index : 0
+
+      // 先停止当前视频播放，避免加载错误
+      if (this.vodList.length > 0 && this.vodCurIndex >= 0) {
+        const currentVideo = this.vodList[this.vodCurIndex]
+        if (currentVideo && currentVideo.tspId) {
+          const videoElement = this.$refs[currentVideo.tspId]
+          if (videoElement && videoElement[0]) {
+            videoElement[0].pause()
+          }
+        }
+      }
+
+      // 清理所有 HLS 实例，避免刷新后的播放错误
+      this.cleanupAllHlsInstances()
+
       this.vodList = []
       this.resetData()
+
+      // 关闭刷新状态，因为父组件已经完成了数据获取
+      this.finishRefresh()
+
       setTimeout(() => {
         this.initVod(dataList, playIndex)
       }, 50)
     },
+
+    /* 清理所有 HLS 实例 */
+    cleanupAllHlsInstances() {
+      if (this.hlsInstances && this.hlsInstances.size > 0) {
+        console.log(`清理 ${this.hlsInstances.size} 个 HLS 实例`)
+        this.hlsInstances.forEach((hls, index) => {
+          try {
+            hls.destroy()
+          } catch (error) {
+            console.warn(`清理索引 ${index} 的 HLS 实例时出错:`, error)
+          }
+        })
+        this.hlsInstances.clear()
+      } else {
+        console.log('没有 HLS 实例需要清理')
+      }
+    },
+
+    /* 完成下拉刷新 */
+    finishRefresh() {
+      // 模拟原生unirefresh的closeRefresh行为
+      console.log(
+        '完成刷新: refreshOpen=false, refreshShow=false, moveClientY=0'
+      )
+      this.refreshShow = false
+      this.refreshOpen = false
+      this.moveClientY = 0
+    },
+
     /* 静音设置 */
     muteVideo(val) {
       this.muteSetup = val
@@ -419,14 +466,20 @@ export default {
         this.getVodInfo()
       }
 
+      console.log(
+        `playSpot called for index ${index}, vodPaly: ${this.beforeVodInfo?.vodPaly}`
+      )
+
       // 使用beforeVodInfo来判断当前视频的播放状态
       if (this.beforeVodInfo && this.beforeVodInfo.vodPaly) {
         //暂停
+        console.log(`暂停视频 ${index}`)
         this.videoPause(index)
         this.beforeVodInfo.pauseShow = true //显示暂停图标
         this.manuallyPaused = true
       } else {
         //播放
+        console.log(`播放视频 ${index}`)
         this.videoPlay(index)
         if (this.beforeVodInfo) {
           this.beforeVodInfo.pauseShow = false //关闭暂停图标
@@ -457,7 +510,33 @@ export default {
           this
         )
         if (videoContext) {
+          console.log(`调用 videoContext.play() for index ${index}`)
           videoContext.play()
+
+          // 对于 HLS 视频，由于可能不会触发 @play 事件，我们延迟检查并手动触发 startPlay
+          if (isHLSVideo(currentVideoUrl)) {
+            console.log(
+              `检测到 HLS 视频，将延迟触发 startPlay for index ${index}`
+            )
+            setTimeout(() => {
+              // 检查视频是否真的开始播放了，但 @play 事件没有触发
+              // 同时确保用户没有手动暂停视频
+              if (
+                this.vodIndex === index &&
+                (!this.beforeVodInfo || !this.beforeVodInfo.vodPaly) &&
+                !this.manuallyPaused
+              ) {
+                console.log(
+                  `HLS 视频可能已播放但未触发 @play 事件，手动调用 startPlay for index ${index}`
+                )
+                this.startPlay(index)
+              } else if (this.manuallyPaused) {
+                console.log(
+                  `跳过 HLS 延迟触发，因为用户已手动暂停 for index ${index}`
+                )
+              }
+            }, 2000) // 给视频足够时间开始播放
+          }
         } else {
           console.error('无法创建video context')
         }
@@ -472,7 +551,7 @@ export default {
 
     /* HLS视频播放方法 */
     playHLSVideo(index, videoUrl) {
-      // console.log(`HLS播放方法被调用，索引: ${index}，URL: ${videoUrl}`)
+      console.log(`HLS播放方法被调用，索引: ${index}，URL: ${videoUrl}`)
 
       // 延迟执行，确保DOM完全渲染
       setTimeout(() => {
@@ -566,7 +645,7 @@ export default {
 
     /* 尝试初始化HLS播放器 */
     tryInitHLS(index, videoUrl) {
-      // console.log(`尝试为索引${index}初始化HLS播放器`)
+      console.log(`尝试为索引${index}初始化HLS播放器`)
 
       // 根据索引获取对应的video元素
       const targetVideo = this.getVideoElementByIndex(index)
@@ -574,6 +653,8 @@ export default {
         console.error(`无法找到索引${index}对应的video元素`)
         return
       }
+
+      console.log(`找到索引${index}的video元素:`, targetVideo)
 
       // console.log(`使用索引${index}的video元素:`, targetVideo)
 
@@ -614,7 +695,10 @@ export default {
             targetVideo
               .play()
               .then(() => {
-                // console.log(`索引${index}的HLS视频开始播放`)
+                console.log(`索引${index}的HLS视频开始播放，手动触发startPlay`)
+                // 手动触发 startPlay 事件，因为 HLS.js 可能不会触发 Vue 的 @play 事件
+                this.startPlay(index)
+
                 // 清理重试计数器
                 if (this.hlsRetryCount && this.hlsRetryCount.has(index)) {
                   this.hlsRetryCount.delete(index)
@@ -763,9 +847,21 @@ export default {
     },
     /* 要播放视频的下标 */
     swiperVod(ev) {
-      if (this.manuallyPaused) {
-        this.manuallyPaused = false
+      console.log('swiperVod called with event:', ev.detail)
+
+      // 如果当前索引没有变化，可能是误触发，直接返回
+      if (ev.detail.current === this.vodIndex) {
+        console.log(
+          `swiperVod ignored: current index (${ev.detail.current}) same as vodIndex (${this.vodIndex})`
+        )
         return
+      }
+
+      // 重置手动暂停状态，但不阻止视频切换逻辑
+      if (this.manuallyPaused) {
+        console.log('Resetting manuallyPaused from true to false')
+        this.manuallyPaused = false
+        // 不要直接返回，继续执行视频切换逻辑
       }
       // 还原后的代码
       let curIndex = ev.detail.current
@@ -822,6 +918,9 @@ export default {
           this.totalPlayList.length >= this.totalvod ? false : true
       }
 
+      console.log(
+        `Updating vodIndex from ${this.vodIndex} to ${this.changeIndex}`
+      )
       this.vodIndex = this.changeIndex
       this.swiperPlay(this.vodIndex)
 
@@ -839,11 +938,19 @@ export default {
     /* 获取当前视频播放对象 */
     getVodInfo() {
       // 还原后的代码
+      console.log(`getVodInfo called, vodCurIndex: ${this.vodCurIndex}`)
       this.vodList.filter((item) => {
         if (this.vodCurIndex == item.videoIndex) {
           this.beforeVodInfo = item
+          console.log(`Found matching video, beforeVodInfo set:`, item)
         }
       })
+      if (!this.beforeVodInfo) {
+        console.warn(
+          'No matching video found for vodCurIndex:',
+          this.vodCurIndex
+        )
+      }
     },
     /* 截取要播放的视频列表 */
     getVodSliceList() {
@@ -870,15 +977,19 @@ export default {
     /* swiper播放视频 */
     swiperPlay(newIndex) {
       // 还原后的代码
+      console.log(`swiperPlay called for index ${newIndex}`)
       this.shakePlay = false
       clearInterval(this.failTime)
       clearInterval(this.repeatTime)
       this.muteVideo(false)
 
       if (uni.createVideoContext('myVideo' + newIndex + this.swId, this)) {
+        console.log(`Starting video play for index ${newIndex}`)
         this.playOpen = false
         // 不在这里设置vodPaly状态，让startPlay事件来设置，确保状态与实际播放同步
         this.videoPlay(newIndex)
+      } else {
+        console.warn(`Failed to create video context for index ${newIndex}`)
       }
 
       this.$refs['menuRef' + newIndex + ''][0].likeeffect = null
@@ -886,7 +997,11 @@ export default {
     /* 当开始/继续播放时 */
     startPlay(index) {
       // 还原后的代码
+      console.log(
+        `startPlay called for index ${index}, current vodIndex: ${this.vodIndex}`
+      )
       if (this.vodIndex == index) {
+        console.log(`Setting vodPaly = true for index ${index}`)
         this.playOpen = false
 
         // 视频真正开始播放时，设置正确的播放状态
@@ -908,6 +1023,10 @@ export default {
 
         clearInterval(this.failTime)
         clearInterval(this.repeatTime)
+      } else {
+        console.log(
+          `startPlay ignored: vodIndex (${this.vodIndex}) != index (${index})`
+        )
       }
     },
     /* 视频出现缓冲 */
@@ -1173,21 +1292,18 @@ export default {
         this.moveOpacity = false
       }
 
-      // 下拉刷新逻辑
+      // 下拉刷新逻辑 - 简化为只控制显示状态
       if (this.loadOpen && this.vodCurIndex == 0 && !this.refreshOpen) {
-        if (this.moveClientY > 10) {
+        if (this.moveClientY > 20) {
           this.refreshShow = true
-          if (
-            this.moveClientY > 10 &&
-            this.moveClientY <= 60 &&
-            this.refreshShow
-          ) {
-            this.refreshOpacity = this.moveClientY / 60
-            this.refreshclientY = this.moveClientY / 2
-          }
         } else {
           this.refreshShow = false
         }
+      }
+
+      // 如果正在刷新，确保刷新组件保持显示
+      if (this.refreshOpen) {
+        this.refreshShow = true
       }
 
       this.startPlayVod = false
@@ -1214,6 +1330,12 @@ export default {
         Math.abs(moveClientX) < 10 &&
         Math.abs(moveClientY) < 10
       ) {
+        // 防止与其他点击事件冲突，添加防抖
+        if (this.lastClickTime && touchEndTime - this.lastClickTime < 500) {
+          console.log('防抖：忽略重复的点击事件')
+          return
+        }
+        this.lastClickTime = touchEndTime
         this.handClick(e, this.vodIndex)
         return
       }
@@ -1223,22 +1345,27 @@ export default {
       this.startPlayVod = true // 关键修复：设置为true以允许视频切换
 
       // 下拉刷新逻辑
-      if (this.loadOpen && this.vodCurIndex == 0 && this.refreshShow) {
-        if (
-          this.moveClientY > 1 &&
-          this.moveClientY < 60 &&
-          !this.refreshOpen
-        ) {
-          this.refreshOpacity = 0
-          this.refreshclientY = 0
-          setTimeout(() => {
-            this.refreshShow = false
-          }, 300) // 0x12c = 300ms
-        } else {
-          if (this.refreshOpen) return
+      if (this.loadOpen && this.vodCurIndex == 0) {
+        if (this.moveClientY > 80 && !this.refreshOpen) {
+          // 达到刷新阈值，触发刷新
+          console.log(
+            '触发刷新: refreshOpen=true, refreshShow=true, moveClientY=80'
+          )
           this.refreshOpen = true
+          this.refreshShow = true // 确保刷新组件显示
+          // 设置固定位置，保持刷新组件显示在顶部
+          this.moveClientY = 80
           this.$emit('refreshData')
+          return // 触发刷新时不重置moveClientY
+        } else if (this.moveClientY <= 80 && !this.refreshOpen) {
+          // 未达到刷新阈值且没有正在刷新，隐藏刷新提示
+          this.refreshShow = false
         }
+      }
+
+      // 只有在没有触发刷新时才重置移动距离
+      if (!this.refreshOpen) {
+        this.moveClientY = 0
       }
     },
     /* 重置状态数据 */
@@ -1253,6 +1380,11 @@ export default {
       this.sliderDrag = false
       this.brightSlider = false
       this.sliderEndTime = null
+
+      // 注意：刷新状态由 finishRefresh() 方法专门负责重置
+      // 这里不重置刷新状态，避免刷新动画过早消失
+      // this.refreshShow = false
+      // this.refreshOpen = false
     },
     // 单击或双击
     handClick(event, index) {

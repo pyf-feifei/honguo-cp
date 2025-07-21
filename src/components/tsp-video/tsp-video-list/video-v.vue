@@ -1,237 +1,259 @@
 <template>
   <view class="page">
     <view :style="{ height: videoStyle.statusBarHeight }"></view>
+
+    <!-- 下拉刷新容器 - 包装整个内容区域 -->
     <view
-      class="contentBox"
+      class="refresh-wrapper"
       v-if="contentShow"
-      :style="{ width: videoStyle.width, height: videoStyle.height }"
+      :style="{
+        transform:
+          'translateY(' +
+          (moveClientY > 0 && vodCurIndex == 0 ? moveClientY : 0) +
+          'px)',
+        transition:
+          moveClientY > 0 && vodCurIndex == 0
+            ? 'none'
+            : 'transform 0.3s ease-out',
+      }"
     >
-      <swiper
-        :style="{ width: videoStyle.width, height: videoStyle.height }"
-        vertical
-        :circular="circular"
-        :duration="durationNum"
-        @change="changeSwiper"
-        @animationfinish="swiperVod"
-        class="swiperBox"
-        :current="currentIndex"
-      >
-        <swiper-item
-          v-for="(item, index) in vodList"
-          :key="item.videoIndex"
-          class="box"
-        >
-          <view
-            :style="{
-              opacity: shadeNum > 2 ? '0' : '1',
-              width: videoStyle.width,
-              height: videoStyle.height,
-            }"
-          >
-            <view class="vodPlayer">
-              <video
-                v-if="item.vodUrl"
-                :style="{ width: videoStyle.width, height: videoStyle.height }"
-                :src="item.vodUrl"
-                :controls="false"
-                :enable-progress-gesture="false"
-                :show-loading="false"
-                :show-play-btn="false"
-                :show-center-play-btn="false"
-                :show-fullscreen-btn="false"
-                :vslide-gesture-in-fullscreen="false"
-                :show-progress="false"
-                :object-fit="item.object_fit"
-                :http-cache="true"
-                :loop="loopPlay"
-                :muted="index == vodIndex && !muteSetup ? false : true"
-                :id="'myVideo' + index + swId"
-                @play="startPlay(index)"
-                @waiting="bufferVod(index)"
-                @timeupdate="timeupdateVod($event, index)"
-                @error="errVod(index)"
-                @ended="endedVod(index)"
-                @loadstart="onVideoLoadStart(index)"
-                @canplay="onVideoCanPlay(index)"
-              ></video>
-            </view>
-            <!-- 视频封面 -->
-            <view class="vodPause-img" v-if="item.coverShow">
-              <image
-                :src="item.coverImg"
-                :mode="item.object_fit == 'cover' ? 'aspectFill' : 'widthFix'"
-                class="cover-img"
-                :style="{
-                  opacity: item.coverOpacity ? 1 : 0,
-                  width: videoStyle.width,
-                  height: item.object_fit == 'cover' ? videoStyle.height : 0,
-                }"
-              ></image>
-            </view>
-            <!-- 暂停图标 -->
-            <view class="vodPause-img" v-if="item.pauseShow">
-              <image
-                src="/static/icon/vod-play.png"
-                class="vodPauseImage"
-              ></image>
-            </view>
+      <!-- 下拉刷新提示区域 -->
+      <view class="refresh-indicator" v-if="refreshShow">
+        <view class="refresh-content">
+          <view class="refresh-text">
+            {{
+              refreshOpen
+                ? '正在刷新...'
+                : moveClientY > 60
+                ? '松开刷新'
+                : '下拉刷新'
+            }}
+          </view>
+          <view class="refresh-loading" v-if="refreshOpen">
             <view
-              @longpress="longpress(item)"
-              class="vodPlayView"
-              :style="videoStyle"
-              @touchstart.passive="vodViewStart($event)"
-              @touchmove.passive="vodViewMove($event)"
-              @touchend.passive="vodViewEnd($event)"
+              class="k-ball7a k-paused k-running"
+              style="width: 20rpx; height: 20rpx"
             ></view>
-            <!-- 底部标题、右侧操作栏 -->
-            <videoMenu
-              :ref="'menuRef' + index"
-              :vodIndex="vodIndex"
-              :vodCurIndex="vodCurIndex"
-              :item="item"
-              :discussNum="totalPlayList.length"
-              :index="index"
-              :sliderDrag="sliderDrag"
-              :moveOpacity="moveOpacity"
-              :palyCartoon="palyCartoon"
-              @handleInfo="handleInfo"
-            ></videoMenu>
+            <view
+              class="k-ball7b k-paused k-running"
+              style="width: 20rpx; height: 20rpx"
+            ></view>
+            <view
+              class="k-ball7c k-paused k-running"
+              style="width: 20rpx; height: 20rpx"
+            ></view>
+            <view
+              class="k-ball7d k-paused k-running"
+              style="width: 20rpx; height: 20rpx"
+            ></view>
           </view>
-          <!-- 底层图标 -->
-          <view class="vodLayer">
-            <image
-              src="/static/icon/sound.png"
-              mode=""
-              class="vodLayer-img"
-            ></image>
-          </view>
-        </swiper-item>
-      </swiper>
-      <!-- 遮罩层，防止滑动过快 -->
-      <swiper
-        class="shade-swiper"
-        :style="{
-          width: videoStyle.width,
-          height: videoStyle.height,
-          pointerEvents: showShade ? 'auto' : 'none',
-          opacity: showShade ? '1' : '0',
-        }"
-        vertical
-      >
-        <swiper-item v-for="(item, index) in 1" :key="index" class="box">
-          <!-- 底层图标 -->
-          <view class="vodLayer">
-            <image
-              src="/static/icon/sound.png"
-              mode=""
-              class="vodLayer-img"
-            ></image>
-          </view>
-        </swiper-item>
-      </swiper>
-      <!-- 底部加载动画 -->
-      <view class="pullup" v-if="loadShow">
-        <view style="width: 32rpx; height: 32rpx; margin-right: 30rpx">
-          <view class="k-ball7a" style="width: 20rpx; height: 20rpx"></view>
-          <view class="k-ball7b" style="width: 20rpx; height: 20rpx"></view>
-          <view class="k-ball7c" style="width: 20rpx; height: 20rpx"></view>
-          <view class="k-ball7d" style="width: 20rpx; height: 20rpx"></view>
         </view>
       </view>
+
+      <!-- 视频内容区域 -->
       <view
-        class="flooter"
-        :style="{ opacity: moveOpacity ? 0 : 1, bottom: speedBottom + 'px' }"
-        v-if="vodList.length > 0 && beforeVodInfo.sliderShow"
+        class="contentBox"
+        :style="{ width: videoStyle.width, height: videoStyle.height }"
       >
-        <!-- 滑动进度条显示时间 -->
-        <view class="sliderData" v-if="sliderDrag">
-          <view class="slider-text">
-            <text>{{ formatSeconds(sliderTime) }}</text>
-            <text style="font-size: 30rpx; margin: 0 10rpx">/</text>
-            <text style="opacity: 0.5">{{ formatSeconds(videoTime) }}</text>
+        <swiper
+          :style="{ width: videoStyle.width, height: videoStyle.height }"
+          vertical
+          :circular="circular"
+          :duration="durationNum"
+          @change="changeSwiper"
+          @animationfinish="swiperVod"
+          class="swiperBox"
+          :current="currentIndex"
+        >
+          <swiper-item
+            v-for="(item, index) in vodList"
+            :key="item.videoIndex"
+            class="box"
+          >
+            <view
+              :style="{
+                opacity: shadeNum > 2 ? '0' : '1',
+                width: videoStyle.width,
+                height: videoStyle.height,
+              }"
+            >
+              <view class="vodPlayer">
+                <video
+                  v-if="item.vodUrl"
+                  :style="{
+                    width: videoStyle.width,
+                    height: videoStyle.height,
+                  }"
+                  :src="item.vodUrl"
+                  :controls="false"
+                  :enable-progress-gesture="false"
+                  :show-loading="false"
+                  :show-play-btn="false"
+                  :show-center-play-btn="false"
+                  :show-fullscreen-btn="false"
+                  :vslide-gesture-in-fullscreen="false"
+                  :show-progress="false"
+                  :object-fit="item.object_fit"
+                  :http-cache="true"
+                  :loop="loopPlay"
+                  :muted="index == vodIndex && !muteSetup ? false : true"
+                  :id="'myVideo' + index + swId"
+                  @play="startPlay(index)"
+                  @waiting="bufferVod(index)"
+                  @timeupdate="timeupdateVod($event, index)"
+                  @error="errVod(index)"
+                  @ended="endedVod(index)"
+                  @loadstart="onVideoLoadStart(index)"
+                  @canplay="onVideoCanPlay(index)"
+                ></video>
+              </view>
+              <!-- 视频封面 -->
+              <view class="vodPause-img" v-if="item.coverShow">
+                <image
+                  :src="item.coverImg"
+                  :mode="item.object_fit == 'cover' ? 'aspectFill' : 'widthFix'"
+                  class="cover-img"
+                  :style="{
+                    opacity: item.coverOpacity ? 1 : 0,
+                    width: videoStyle.width,
+                    height: item.object_fit == 'cover' ? videoStyle.height : 0,
+                  }"
+                ></image>
+              </view>
+              <!-- 暂停图标 -->
+              <view class="vodPause-img" v-if="item.pauseShow">
+                <image
+                  src="/static/icon/vod-play.png"
+                  class="vodPauseImage"
+                ></image>
+              </view>
+              <view
+                @longpress="longpress(item)"
+                class="vodPlayView"
+                :style="videoStyle"
+                @touchstart.passive="vodViewStart($event)"
+                @touchmove.passive="vodViewMove($event)"
+                @touchend.passive="vodViewEnd($event)"
+              ></view>
+              <!-- 底部标题、右侧操作栏 -->
+              <videoMenu
+                :ref="'menuRef' + index"
+                :vodIndex="vodIndex"
+                :vodCurIndex="vodCurIndex"
+                :item="item"
+                :discussNum="totalPlayList.length"
+                :index="index"
+                :sliderDrag="sliderDrag"
+                :moveOpacity="moveOpacity"
+                :palyCartoon="palyCartoon"
+                @handleInfo="handleInfo"
+              ></videoMenu>
+            </view>
+            <!-- 底层图标 -->
+            <view class="vodLayer">
+              <image
+                src="/static/icon/sound.png"
+                mode=""
+                class="vodLayer-img"
+              ></image>
+            </view>
+          </swiper-item>
+        </swiper>
+        <!-- 遮罩层，防止滑动过快 -->
+        <swiper
+          class="shade-swiper"
+          :style="{
+            width: videoStyle.width,
+            height: videoStyle.height,
+            pointerEvents: showShade ? 'auto' : 'none',
+            opacity: showShade ? '1' : '0',
+          }"
+          vertical
+        >
+          <swiper-item v-for="(item, index) in 1" :key="index" class="box">
+            <!-- 底层图标 -->
+            <view class="vodLayer">
+              <image
+                src="/static/icon/sound.png"
+                mode=""
+                class="vodLayer-img"
+              ></image>
+            </view>
+          </swiper-item>
+        </swiper>
+        <!-- 底部加载动画 -->
+        <view class="pullup" v-if="loadShow">
+          <view style="width: 32rpx; height: 32rpx; margin-right: 30rpx">
+            <view class="k-ball7a" style="width: 20rpx; height: 20rpx"></view>
+            <view class="k-ball7b" style="width: 20rpx; height: 20rpx"></view>
+            <view class="k-ball7c" style="width: 20rpx; height: 20rpx"></view>
+            <view class="k-ball7d" style="width: 20rpx; height: 20rpx"></view>
           </view>
         </view>
-        <!-- 进度条 -->
         <view
-          class="sliderBox"
-          :style="{ opacity: shadeNum > 2 ? '0' : '1' }"
-          @touchmove.stop.passive="touchmoveSlider"
-          @touchstart.stop.passive="touchmoveSlider"
-          @touchend.stop.passive="touchendSlider"
+          class="flooter"
+          :style="{ opacity: moveOpacity ? 0 : 1, bottom: speedBottom + 'px' }"
           v-if="vodList.length > 0 && beforeVodInfo.sliderShow"
         >
+          <!-- 滑动进度条显示时间 -->
+          <view class="sliderData" v-if="sliderDrag">
+            <view class="slider-text">
+              <text>{{ formatSeconds(sliderTime) }}</text>
+              <text style="font-size: 30rpx; margin: 0 10rpx">/</text>
+              <text style="opacity: 0.5">{{ formatSeconds(videoTime) }}</text>
+            </view>
+          </view>
+          <!-- 进度条 -->
           <view
-            class="slider-item"
-            :style="{ height: brightSlider ? '18px' : '2px' }"
+            class="sliderBox"
+            :style="{ opacity: shadeNum > 2 ? '0' : '1' }"
+            @touchmove.stop.passive="touchmoveSlider"
+            @touchstart.stop.passive="touchmoveSlider"
+            @touchend.stop.passive="touchendSlider"
+            v-if="vodList.length > 0 && beforeVodInfo.sliderShow"
           >
-            <!-- 底层 -->
             <view
-              class="slider-box"
-              :class="[brightSlider ? 'slider-box-active' : '']"
-            ></view>
-            <!-- 滑块 -->
-            <!-- <view class="slider-block" :class="[brightSlider?'slider-block-active':'']" :style="{transform:`translateX(${sliderProgress}px)`}"></view> -->
-            <!-- 滑动层 -->
-            <view
-              class="slider-load"
-              :class="[brightSlider ? 'slider-load-active' : '']"
-              :style="{
-                transform: `translateX(${
-                  sliderProgress > 0
-                    ? sliderProgress - screenWidth
-                    : -screenWidth
-                }px)`,
-              }"
-            ></view>
+              class="slider-item"
+              :style="{ height: brightSlider ? '18px' : '2px' }"
+            >
+              <!-- 底层 -->
+              <view
+                class="slider-box"
+                :class="[brightSlider ? 'slider-box-active' : '']"
+              ></view>
+              <!-- 滑块 -->
+              <!-- <view class="slider-block" :class="[brightSlider?'slider-block-active':'']" :style="{transform:`translateX(${sliderProgress}px)`}"></view> -->
+              <!-- 滑动层 -->
+              <view
+                class="slider-load"
+                :class="[brightSlider ? 'slider-load-active' : '']"
+                :style="{
+                  transform: `translateX(${
+                    sliderProgress > 0
+                      ? sliderProgress - screenWidth
+                      : -screenWidth
+                  }px)`,
+                }"
+              ></view>
+            </view>
           </view>
-        </view>
-        <view
-          v-else
-          :style="{ width: screenWidth + 'px', height: '18px' }"
-        ></view>
-        <!-- loading加载动画进度 -->
-        <view
-          class="loadSlider"
-          v-if="vodList.length > 0 && beforeVodInfo.loadingShow"
-        >
-          <view :style="{ opacity: brightSlider ? 0 : 1 }">
-            <view
-              class="loading-slider"
-              ref="loadSlider"
-              :style="{ width: screenWidth + 'px' }"
-            ></view>
+          <view
+            v-else
+            :style="{ width: screenWidth + 'px', height: '18px' }"
+          ></view>
+          <!-- loading加载动画进度 -->
+          <view
+            class="loadSlider"
+            v-if="vodList.length > 0 && beforeVodInfo.loadingShow"
+          >
+            <view :style="{ opacity: brightSlider ? 0 : 1 }">
+              <view
+                class="loading-slider"
+                ref="loadSlider"
+                :style="{ width: screenWidth + 'px' }"
+              ></view>
+            </view>
           </view>
-        </view>
-      </view>
-    </view>
-    <!-- 刷新 -->
-    <view class="refresh" v-if="refreshShow">
-      <view style="height: 140rpx"></view>
-      <!--  :style="{opacity:refreshOpacity,transform: 'translateY('+refreshclientY+'px)'}" -->
-      <view class="refreshBox" :style="{ opacity: refreshOpacity }">
-        <view style="width: 32rpx; height: 32rpx"></view>
-        <view>下拉刷新内容</view>
-        <view style="width: 32rpx; height: 32rpx; margin-right: 30rpx">
-          <view
-            class="k-ball7a k-paused"
-            style="width: 20rpx; height: 20rpx"
-            :class="[refreshOpen ? 'k-running' : '']"
-          ></view>
-          <view
-            class="k-ball7b k-paused"
-            style="width: 20rpx; height: 20rpx"
-            :class="[refreshOpen ? 'k-running' : '']"
-          ></view>
-          <view
-            class="k-ball7c k-paused"
-            style="width: 20rpx; height: 20rpx"
-            :class="[refreshOpen ? 'k-running' : '']"
-          ></view>
-          <view
-            class="k-ball7d k-paused"
-            style="width: 20rpx; height: 20rpx"
-            :class="[refreshOpen ? 'k-running' : '']"
-          ></view>
         </view>
       </view>
     </view>
@@ -539,25 +561,42 @@ export default {
   align-items: center;
 }
 /* 下拉刷新 */
-.refresh {
-  position: fixed;
-  top: 0;
+.refresh-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.refresh-indicator {
+  position: absolute;
+  top: -100rpx;
   left: 0;
   width: 100%;
-  z-index: 15;
-}
-.refreshBox {
   height: 100rpx;
-  color: #ffffff;
-  font-size: 33rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.refresh-content {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 30rpx;
-  /* transform: translateY(-30px); */
-  transition: all 0.01s linear;
-  opacity: 0;
+  gap: 20rpx;
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
+.refresh-text {
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
+.refresh-loading {
+  position: relative;
+  width: 32rpx;
+  height: 32rpx;
 }
 .pullup {
   position: absolute;
