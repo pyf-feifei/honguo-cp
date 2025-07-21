@@ -228,7 +228,8 @@ export default {
       // 为每个视频项添加必要的属性
       dataList.filter((item, index) => {
         item.videoIndex = index
-        item.vodPaly = index == playIndex ? true : false
+        // 初始化时所有视频都设置为未播放状态，等真正开始播放时再设置为true
+        item.vodPaly = false
         item.pauseShow = false
         item.loadingShow = false
         item.coverOpacity = item.coverShow ? true : false
@@ -324,7 +325,8 @@ export default {
         }
 
         if (playIndex > 0) {
-          this.beforeVodInfo = currentNum
+          // 注释掉错误的赋值，getVodInfo()会正确设置beforeVodInfo
+          // this.beforeVodInfo = currentNum
         }
         this.currentIndex = currentNum
         this.vodIndex = currentNum
@@ -336,8 +338,11 @@ export default {
         if (this.autoplayVideo) {
           this.swiperPlay(currentNum)
         } else {
-          this.beforeVodInfo.vodPaly = false
-          // this.beforeVodInfo.pauseShow = true // Bug: This causes the pause icon to show incorrectly
+          // 确保beforeVodInfo已经被正确设置后再访问其属性
+          if (this.beforeVodInfo && typeof this.beforeVodInfo === 'object') {
+            this.beforeVodInfo.vodPaly = false
+            // this.beforeVodInfo.pauseShow = true // Bug: This causes the pause icon to show incorrectly
+          }
         }
       }, 200) // 0xc8 = 200
     },
@@ -386,6 +391,7 @@ export default {
       if (
         this.vodIndex != null &&
         this.contentShow &&
+        this.beforeVodInfo &&
         !this.beforeVodInfo.vodPaly
       ) {
         this.videoPlay(this.vodIndex)
@@ -396,6 +402,7 @@ export default {
       if (
         this.vodIndex != null &&
         this.contentShow &&
+        this.beforeVodInfo &&
         this.beforeVodInfo.vodPaly
       ) {
         this.videoPause(this.vodIndex)
@@ -404,19 +411,26 @@ export default {
     },
     /* 点击暂停、播放视频 */
     playSpot(index) {
-      const vodInfo = this.vodList[index]
-      if (!vodInfo) {
-        return
+      // 确保beforeVodInfo已经被正确初始化
+      if (!this.beforeVodInfo || typeof this.beforeVodInfo !== 'object') {
+        console.warn(
+          'beforeVodInfo not properly initialized, calling getVodInfo()'
+        )
+        this.getVodInfo()
       }
-      if (vodInfo.vodPaly) {
+
+      // 使用beforeVodInfo来判断当前视频的播放状态
+      if (this.beforeVodInfo && this.beforeVodInfo.vodPaly) {
         //暂停
         this.videoPause(index)
-        vodInfo.pauseShow = true //显示暂停图标
+        this.beforeVodInfo.pauseShow = true //显示暂停图标
         this.manuallyPaused = true
       } else {
         //播放
         this.videoPlay(index)
-        vodInfo.pauseShow = false // Add this line to ensure UI updates correctly
+        if (this.beforeVodInfo) {
+          this.beforeVodInfo.pauseShow = false //关闭暂停图标
+        }
         this.manuallyPaused = false
       }
     },
@@ -425,7 +439,7 @@ export default {
       // 还原后的代码 - 增加HLS支持
       let vodInfo = this.vodList[index]
       if (vodInfo) {
-        vodInfo.vodPaly = true
+        // 不在这里设置vodPaly = true，让startPlay事件来设置，确保状态与实际播放同步
         vodInfo.pauseShow = false
       }
       this.brightSlider = false
@@ -693,7 +707,11 @@ export default {
         vodInfo.vodPaly = false
       }
 
-      if (this.vodIndex == index && this.beforeVodInfo.sliderShow) {
+      if (
+        this.vodIndex == index &&
+        this.beforeVodInfo &&
+        this.beforeVodInfo.sliderShow
+      ) {
         this.brightSlider = true
       }
 
@@ -859,7 +877,7 @@ export default {
 
       if (uni.createVideoContext('myVideo' + newIndex + this.swId, this)) {
         this.playOpen = false
-        this.beforeVodInfo.vodPaly = true
+        // 不在这里设置vodPaly状态，让startPlay事件来设置，确保状态与实际播放同步
         this.videoPlay(newIndex)
       }
 
@@ -871,7 +889,20 @@ export default {
       if (this.vodIndex == index) {
         this.playOpen = false
 
-        if (this.beforeVodInfo.palyCartoon) {
+        // 视频真正开始播放时，设置正确的播放状态
+        if (this.beforeVodInfo) {
+          this.beforeVodInfo.vodPaly = true
+          this.beforeVodInfo.pauseShow = false
+        }
+
+        // 同时更新vodList中对应的项
+        const vodInfo = this.vodList[index]
+        if (vodInfo) {
+          vodInfo.vodPaly = true
+          vodInfo.pauseShow = false
+        }
+
+        if (this.beforeVodInfo && this.beforeVodInfo.palyCartoon) {
           this.rotateImgShow = true
         }
 
@@ -888,6 +919,7 @@ export default {
         this.vodList.length > 0 &&
         this.changeIndex == this.vodIndex &&
         !this.bufferShow &&
+        this.beforeVodInfo &&
         this.beforeVodInfo.vodPaly
       ) {
         this.playOpen = true
@@ -925,6 +957,7 @@ export default {
           this.vodList.length > 0 &&
           this.changeIndex == this.vodIndex &&
           !this.bufferShow &&
+          this.beforeVodInfo &&
           this.beforeVodInfo.vodPaly
         ) {
           this.playOpen = true
@@ -978,7 +1011,9 @@ export default {
       // 还原后的代码
       if (this.vodIndex != index) return false
 
-      this.beforeVodInfo.coverOpacity = false
+      if (this.beforeVodInfo) {
+        this.beforeVodInfo.coverOpacity = false
+      }
 
       if (!this.sliderDrag) {
         this.videoTime = ev.detail.duration
@@ -990,7 +1025,9 @@ export default {
       if (this.vodList.length > 0) {
         this.bufferNum = ev.detail.currentTime
         this.loadingShow = false
-        this.beforeVodInfo.bufferShow = false
+        if (this.beforeVodInfo) {
+          this.beforeVodInfo.bufferShow = false
+        }
         clearTimeout(this.bufferTime)
         clearInterval(this.repeatTime)
         clearInterval(this.failTime)
@@ -1002,7 +1039,9 @@ export default {
       if (!this.loadingShow) {
         this.loadingShow = true
         this.bufferTime = setTimeout(() => {
-          this.beforeVodInfo.bufferShow = true
+          if (this.beforeVodInfo) {
+            this.beforeVodInfo.bufferShow = true
+          }
           if (this.playOpen) {
             this.vodLoad()
           }
@@ -1094,8 +1133,10 @@ export default {
       videoCtx.seek(this.endTime)
       videoCtx.play()
 
-      this.beforeVodInfo.vodPaly = true
-      this.beforeVodInfo.pauseShow = false
+      if (this.beforeVodInfo) {
+        this.beforeVodInfo.vodPaly = true
+        this.beforeVodInfo.pauseShow = false
+      }
 
       this.sliderEndTime = setTimeout(() => {
         this.brightSlider = false
