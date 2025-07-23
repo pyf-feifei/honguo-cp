@@ -117,7 +117,6 @@ export default {
       vodCurIndex: 0, //当前播放视频对象下标
       circular: true,
       durationNum: 300,
-      showShade: false, //显示遮罩swiper
       openSpot: false,
       shadeNum: 0,
       bufferTime: null, //缓冲视频显示加载动画防抖
@@ -151,6 +150,7 @@ export default {
       muteSetup: false, //是否设置为静音
       manuallyPaused: false,
       lastClickTime: 0, // 上次点击时间，用于防抖
+      lastPlaySpotTime: 0, // 上次 playSpot 调用时间，用于防抖
       hlsInstance: null, //HLS播放器实例
       /* 双击点赞部分 */
       lastTapDiffTime: 0, //上次点击时间
@@ -197,24 +197,113 @@ export default {
       this.videoStyle.height = deviceInfo.windowHeight - topBarHeight + 'px'
     }
   },
-  watch: {
-    vodCurIndex(newIndex, oldIndex) {
-      /* 上一个视频处理 */
-      if (oldIndex >= 0) {
-        let oldObj = null
-        this.vodList.filter((item, index) => {
-          if (oldIndex == item.videoIndex) {
-            item.coverOpacity = item.coverShow ? true : false
-            item.vodPaly = false
-            item.pauseShow = false
-            item.loadingShow = false
-            uni.createVideoContext('myVideo' + index + this.swId, this).pause()
-          }
-        })
+  computed: {
+    // 基于当前播放位置的预加载过滤
+    filteredVodList() {
+      if (!this.vodList || this.vodList.length === 0) {
+        return []
       }
+
+      // 过滤出当前播放位置前后2个视频的范围（总共最多5个视频）
+      const startIndex = Math.max(0, this.vodIndex - 2)
+      const endIndex = Math.min(this.vodList.length - 1, this.vodIndex + 2)
+
+      return this.vodList.filter((item, index) => {
+        return index >= startIndex && index <= endIndex
+      })
+    },
+
+    // 将vodList的vodIndex映射到filteredVodList的索引
+    filteredCurrentIndex() {
+      if (!this.filteredVodList || this.filteredVodList.length === 0) {
+        return 0
+      }
+
+      // 在filteredVodList中找到当前播放视频的索引
+      const currentVideo = this.vodList[this.vodIndex]
+      if (!currentVideo) {
+        return 0
+      }
+
+      const filteredIndex = this.filteredVodList.findIndex(
+        (item) => item.videoIndex === currentVideo.videoIndex
+      )
+
+      return filteredIndex >= 0 ? filteredIndex : 0
     },
   },
+  watch: {},
   methods: {
+    /* 视频切换核心控制器 */
+    handleVideoChange(current) {
+      // 只对当前预加载范围内的视频进行操作，提高性能
+      const startIndex = Math.max(0, current - 2)
+      const endIndex = Math.min(this.vodList.length - 1, current + 2)
+
+      for (let index = startIndex; index <= endIndex; index++) {
+        if (index === current) {
+          // 播放当前视频，但检查是否被手动暂停
+          if (!this.manuallyPaused) {
+            this.playVideo(index)
+          } else {
+            // 如果被手动暂停，只设置状态但不播放
+            this.vodList[index].vodPaly = false
+            this.vodList[index].pauseShow = true
+          }
+        } else {
+          // 暂停非当前视频（不重置进度）
+          this.pauseVideo(index)
+        }
+      }
+
+      // 更新预加载和数据
+      this.updateVodList(current)
+    },
+
+    /* 播放视频（继续播放，不重置进度） */
+    playVideo(index) {
+      console.log(`播放视频: ${index}`)
+      this.videoPlay(index) // 使用现有的videoPlay逻辑
+      this.vodList[index].vodPaly = true
+    },
+
+    /* 暂停视频（不重置进度） */
+    pauseVideo(index) {
+      const videoCtx = uni.createVideoContext(
+        'myVideo' + index + this.swId,
+        this
+      )
+      if (videoCtx) {
+        videoCtx.pause() // 只暂停，不重置进度
+        this.vodList[index].vodPaly = false
+      }
+    },
+
+    /* 停止并重置视频 */
+    stopAndResetVideo(index) {
+      const videoCtx = uni.createVideoContext(
+        'myVideo' + index + this.swId,
+        this
+      )
+      if (videoCtx) {
+        console.log(`停止并重置视频: ${index}`)
+        videoCtx.stop() // stop方法会暂停并重置到0
+        this.vodList[index].vodPaly = false
+      }
+    },
+
+    /* 更新视频列表和预加载 */
+    updateVodList(current) {
+      this.vodIndex = current
+      this.vodCurIndex = this.vodList[current].videoIndex
+      this.getVodInfo()
+
+      this.$nextTick(() => {
+        if (this.circular) {
+          this.getVodSliceList()
+        }
+      })
+    },
     /* 初始加载视频 */
     initVod(dataList, index) {
       // 还原后的代码
@@ -241,66 +330,16 @@ export default {
 
       this.totalPlayList = dataList
       this.contentShow = false // Initially hide the content
-      this.loadShow = dataList.length > 0 ? true : false
+      this.loadShow = false // 使用基于位置的预加载，不需要底部加载动画
       this.vodCurIndex = playIndex
 
       let currentNum = 0
-      // 如果数据超过3条，只显示3条
-      if (this.totalPlayList.length >= 3) {
-        this.vodList = [{}, {}, {}]
-      } else {
-        this.vodList = dataList
-      }
+      // 使用基于位置的预加载策略，vodList 包含所有数据
+      this.vodList = dataList
 
       setTimeout(() => {
-        if (this.totalPlayList.length >= 3) {
-          let totalLength = this.totalPlayList.length
-          let remainder = totalLength % 3
-          let startIndex = playIndex - 1 < 0 ? 0 : playIndex - 1
-          let endIndex = playIndex + 2
-          let baseLength = totalLength - remainder
-
-          if (playIndex == 0 || playIndex + 1 >= baseLength) {
-            this.circular = false
-            let sliceData = []
-            if (playIndex == 0) {
-              sliceData = JSON.parse(
-                JSON.stringify(
-                  this.totalPlayList.slice(startIndex, playIndex + 3)
-                )
-              )
-            } else {
-              sliceData = JSON.parse(
-                JSON.stringify(
-                  this.totalPlayList.slice(baseLength - 3, baseLength)
-                )
-              )
-            }
-            this.setSliceList(sliceData)
-
-            if (playIndex != 0) {
-              let appendData = JSON.parse(
-                JSON.stringify(
-                  this.totalPlayList.slice(baseLength, totalLength)
-                )
-              )
-              appendData.filter((item) => {
-                this.vodList.push(item)
-              })
-              if (this.totalPlayList.length >= this.totalvod) {
-                this.loadShow = false
-              }
-            }
-          } else {
-            this.circular = true
-            let sliceData = JSON.parse(
-              JSON.stringify(this.totalPlayList.slice(startIndex, endIndex))
-            )
-            this.setSliceList(sliceData)
-          }
-        } else {
-          this.circular = false
-        }
+        // 简化逻辑：不再使用3个视频的循环，直接使用所有数据
+        this.circular = false // 禁用循环，使用基于位置的过滤
 
         this.getVodInfo()
         this.vodList.filter((item, index) => {
@@ -309,19 +348,7 @@ export default {
           }
         })
 
-        // 检查是否需要加载更多数据
-        if (
-          this.vodCurIndex + 1 >=
-            this.totalPlayList.length - (this.totalPlayList.length % 3) &&
-          this.totalPlayList.length >= 3
-        ) {
-          this.loadStart = true
-          clearTimeout(this.loadTime)
-          this.loadTime = setTimeout(() => {
-            this.beginLoad = this.totalPlayList.length
-            this.$emit('lodData')
-          }, 300) // 0x12c = 300
-        }
+        // 移除基于数据长度的预加载逻辑，使用基于位置的过滤
 
         if (playIndex > 0) {
           // 注释掉错误的赋值，getVodInfo()会正确设置beforeVodInfo
@@ -335,7 +362,7 @@ export default {
       setTimeout(() => {
         this.durationNum = 300 // 0x12c = 300
         if (this.autoplayVideo) {
-          this.swiperPlay(currentNum)
+          this.handleVideoChange(currentNum)
         } else {
           // 确保beforeVodInfo已经被正确设置后再访问其属性
           if (this.beforeVodInfo && typeof this.beforeVodInfo === 'object') {
@@ -458,6 +485,14 @@ export default {
     },
     /* 点击暂停、播放视频 */
     playSpot(index) {
+      // 防抖：避免在视频切换过程中被误触发
+      const now = Date.now()
+      if (this.lastPlaySpotTime && now - this.lastPlaySpotTime < 500) {
+        console.log('playSpot 防抖：忽略重复调用')
+        return
+      }
+      this.lastPlaySpotTime = now
+
       // 确保beforeVodInfo已经被正确初始化
       if (!this.beforeVodInfo || typeof this.beforeVodInfo !== 'object') {
         console.warn(
@@ -494,6 +529,9 @@ export default {
       if (vodInfo) {
         // 不在这里设置vodPaly = true，让startPlay事件来设置，确保状态与实际播放同步
         vodInfo.pauseShow = false
+        vodInfo.loadingShow = false
+        // 确保封面隐藏
+        vodInfo.coverOpacity = false
       }
       this.brightSlider = false
 
@@ -502,7 +540,7 @@ export default {
 
       // 对于HLS视频，我们简化处理方式
       // 直接尝试播放，让浏览器自己处理HLS支持
-      // console.log('播放视频URL:', currentVideoUrl)
+      console.log(`播放视频URL: ${currentVideoUrl}, index: ${index}`)
 
       try {
         const videoContext = uni.createVideoContext(
@@ -536,6 +574,20 @@ export default {
                 )
               }
             }, 2000) // 给视频足够时间开始播放
+          } else {
+            // 对于非HLS视频，也添加一个备用的延迟检查
+            setTimeout(() => {
+              if (
+                this.vodIndex === index &&
+                (!this.beforeVodInfo || !this.beforeVodInfo.vodPaly) &&
+                !this.manuallyPaused
+              ) {
+                console.log(
+                  `非HLS视频可能未触发 @play 事件，手动调用 startPlay for index ${index}`
+                )
+                this.startPlay(index)
+              }
+            }, 1000)
           }
         } else {
           console.error('无法创建video context')
@@ -821,119 +873,44 @@ export default {
       // --- 修改结束 ---
     },
     changeSwiper(ev) {
-      // 还原后的代码
-      let curIndex = ev.detail.current
-      let videoIndex = this.vodList[curIndex].videoIndex
-
-      this.showShade = true
-      this.shadeNum++
-      this.openSpot = false
-      this.autoplayVideo = true
-
-      let vodTotal = this.totalPlayList.length % 3
-
-      if (
-        (videoIndex == 0 ||
-          videoIndex + 1 == this.totalPlayList.length - vodTotal) &&
-        this.shadeNum > 1
-      ) {
-        this.showShade = true
-      }
-
-      this.changeIndex = curIndex
-      this.vodCurIndex = videoIndex
-      this.getVodSliceList()
-      this.getVodInfo()
-    },
-    /* 要播放视频的下标 */
-    swiperVod(ev) {
-      console.log('swiperVod called with event:', ev.detail)
-
-      // 如果当前索引没有变化，可能是误触发，直接返回
-      if (ev.detail.current === this.vodIndex) {
-        console.log(
-          `swiperVod ignored: current index (${ev.detail.current}) same as vodIndex (${this.vodIndex})`
+      // 动画开始时，记录目标索引（基于filteredVodList）
+      const filteredIndex = ev.detail.current
+      // 将filteredVodList的索引映射到vodList的索引
+      if (this.filteredVodList && this.filteredVodList[filteredIndex]) {
+        this.changeIndex = this.vodList.findIndex(
+          (item) =>
+            item.videoIndex === this.filteredVodList[filteredIndex].videoIndex
         )
-        return
+      } else {
+        this.changeIndex = filteredIndex
       }
 
-      // 重置手动暂停状态，但不阻止视频切换逻辑
-      if (this.manuallyPaused) {
-        console.log('Resetting manuallyPaused from true to false')
-        this.manuallyPaused = false
-        // 不要直接返回，继续执行视频切换逻辑
+      // 立即暂停当前预加载范围内的视频，防止滑动过程中出现多个声音
+      const startIndex = Math.max(0, this.vodIndex - 2)
+      const endIndex = Math.min(this.vodList.length - 1, this.vodIndex + 2)
+
+      for (let index = startIndex; index <= endIndex; index++) {
+        this.pauseVideo(index)
       }
-      // 还原后的代码
-      let curIndex = ev.detail.current
-      if (this.openSpot) return
+    },
+    /* swiper动画结束时触发 */
+    swiperVod(ev) {
+      const filteredIndex = ev.detail.current
+
+      // 将filteredVodList的索引映射到vodList的索引
+      let actualIndex = filteredIndex
+      if (this.filteredVodList && this.filteredVodList[filteredIndex]) {
+        const targetVideo = this.filteredVodList[filteredIndex]
+        actualIndex = this.vodList.findIndex(
+          (item) => item.videoIndex === targetVideo.videoIndex
+        )
+      }
 
       this.resetData()
       this.moveOpacity = false
-      this.shadeNum = 0
-      this.showShade = false
+      // 不重置 manuallyPaused 状态，保持用户的暂停选择
 
-      let endNum = this.totalPlayList.length - (this.totalPlayList.length % 3)
-
-      if (this.vodCurIndex == 0 || this.vodCurIndex + 1 >= endNum) {
-        this.circular = false
-        let appendNum = this.totalvod - (this.totalvod % 3)
-
-        if (
-          this.vodCurIndex != 0 &&
-          this.vodList.length == 3 &&
-          this.vodCurIndex + 1 >= appendNum &&
-          this.totalvod > 0
-        ) {
-          let arrList = this.totalPlayList.slice(
-            this.vodCurIndex + 1,
-            this.totalPlayList.length
-          )
-          arrList.filter((item) => {
-            this.vodList.push(item)
-          })
-        }
-      } else {
-        let loadNum = this.beginLoad - (this.beginLoad % 3)
-
-        if (
-          this.loadTime > 0 &&
-          this.vodCurIndex + 1 >= loadNum &&
-          this.vodCurIndex + 1 <= this.loadTime
-        ) {
-          // 不执行任何操作
-        } else {
-          if (this.vodList.length > 3) {
-            this.vodList.length = 3
-          }
-          this.loadTime = 0
-        }
-
-        this.$nextTick(() => {
-          this.circular = true
-        })
-      }
-
-      if (this.totalvod > 0) {
-        this.loadShow =
-          this.totalPlayList.length >= this.totalvod ? false : true
-      }
-
-      console.log(
-        `Updating vodIndex from ${this.vodIndex} to ${this.changeIndex}`
-      )
-      this.vodIndex = this.changeIndex
-      this.swiperPlay(this.vodIndex)
-
-      if (
-        this.vodCurIndex + 1 >=
-          this.totalPlayList.length - (this.totalPlayList.length % 3) &&
-        !this.loadStart
-      ) {
-        clearTimeout(this.loadTime)
-        this.loadTime = setTimeout(() => {
-          this.$emit('lodData')
-        }, 300) // 0x12c = 300
-      }
+      this.handleVideoChange(actualIndex)
     },
     /* 获取当前视频播放对象 */
     getVodInfo() {
@@ -974,26 +951,6 @@ export default {
 
       this.finalList = resultList
     },
-    /* swiper播放视频 */
-    swiperPlay(newIndex) {
-      // 还原后的代码
-      console.log(`swiperPlay called for index ${newIndex}`)
-      this.shakePlay = false
-      clearInterval(this.failTime)
-      clearInterval(this.repeatTime)
-      this.muteVideo(false)
-
-      if (uni.createVideoContext('myVideo' + newIndex + this.swId, this)) {
-        console.log(`Starting video play for index ${newIndex}`)
-        this.playOpen = false
-        // 不在这里设置vodPaly状态，让startPlay事件来设置，确保状态与实际播放同步
-        this.videoPlay(newIndex)
-      } else {
-        console.warn(`Failed to create video context for index ${newIndex}`)
-      }
-
-      this.$refs['menuRef' + newIndex + ''][0].likeeffect = null
-    },
     /* 当开始/继续播放时 */
     startPlay(index) {
       // 还原后的代码
@@ -1008,6 +965,9 @@ export default {
         if (this.beforeVodInfo) {
           this.beforeVodInfo.vodPaly = true
           this.beforeVodInfo.pauseShow = false
+          this.beforeVodInfo.loadingShow = false
+          // 确保封面隐藏
+          this.beforeVodInfo.coverOpacity = false
         }
 
         // 同时更新vodList中对应的项
@@ -1015,6 +975,9 @@ export default {
         if (vodInfo) {
           vodInfo.vodPaly = true
           vodInfo.pauseShow = false
+          vodInfo.loadingShow = false
+          // 确保封面隐藏
+          vodInfo.coverOpacity = false
         }
 
         if (this.beforeVodInfo && this.beforeVodInfo.palyCartoon) {
@@ -1023,6 +986,11 @@ export default {
 
         clearInterval(this.failTime)
         clearInterval(this.repeatTime)
+
+        // 确保vodLayer隐藏（通过响应式更新）
+        this.$nextTick(() => {
+          console.log(`视频 ${index} 开始播放，vodLayer应该隐藏`)
+        })
       } else {
         console.log(
           `startPlay ignored: vodIndex (${this.vodIndex}) != index (${index})`
@@ -1189,16 +1157,32 @@ export default {
     },
     /* 视频播放结束 */
     endedVod(index) {
-      // 还原后的代码
-      // console.log('视频播放结束' + index)
+      console.log('视频播放结束' + index)
 
       if (this.vodIndex == index && this.nextPlay) {
-        if (this.vodIndex < 2) {
-          this.vodIndex += 1
-        } else {
-          this.vodIndex = 0
+        // 计算下一个视频索引（修正逻辑）
+        let nextIndex = this.vodIndex + 1
+
+        // 检查是否超出范围
+        if (nextIndex >= this.vodList.length) {
+          console.log('已到达最后一集，停止自动播放')
+          return
         }
-        this.currentIndex = this.vodIndex
+
+        console.log(
+          `自动切换到下一个视频，从第${index}集切换到第${nextIndex}集`
+        )
+
+        // 直接调用视频切换方法
+        this.handleVideoChange(nextIndex)
+
+        // 确保下一个视频自动播放
+        setTimeout(() => {
+          if (this.vodList[nextIndex]) {
+            this.vodList[nextIndex].vodPaly = true
+            this.vodList[nextIndex].pauseShow = false
+          }
+        }, 100)
       }
     },
     // 根据秒获取时间

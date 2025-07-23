@@ -63,10 +63,10 @@
           @change="changeSwiper"
           @animationfinish="swiperVod"
           class="swiperBox"
-          :current="currentIndex"
+          :current="filteredCurrentIndex"
         >
           <swiper-item
-            v-for="(item, index) in vodList"
+            v-for="(item, index) in filteredVodList"
             :key="item.videoIndex"
             class="box"
           >
@@ -96,15 +96,17 @@
                   :object-fit="item.object_fit"
                   :http-cache="true"
                   :loop="loopPlay"
-                  :muted="index == vodIndex && !muteSetup ? false : true"
-                  :id="'myVideo' + index + swId"
-                  @play="startPlay(index)"
-                  @waiting="bufferVod(index)"
-                  @timeupdate="timeupdateVod($event, index)"
-                  @error="errVod(index)"
-                  @ended="endedVod(index)"
-                  @loadstart="onVideoLoadStart(index)"
-                  @canplay="onVideoCanPlay(index)"
+                  :muted="
+                    item.videoIndex == vodCurIndex && !muteSetup ? false : true
+                  "
+                  :id="'myVideo' + item.videoIndex + swId"
+                  @play="startPlay(item.videoIndex)"
+                  @waiting="bufferVod(item.videoIndex)"
+                  @timeupdate="timeupdateVod($event, item.videoIndex)"
+                  @error="errVod(item.videoIndex)"
+                  @ended="endedVod(item.videoIndex)"
+                  @loadstart="onVideoLoadStart(item.videoIndex)"
+                  @canplay="onVideoCanPlay(item.videoIndex)"
                 ></video>
               </view>
               <!-- 视频封面 -->
@@ -137,20 +139,24 @@
               ></view>
               <!-- 底部标题、右侧操作栏 -->
               <videoMenu
-                :ref="'menuRef' + index"
+                :ref="'menuRef' + item.videoIndex"
                 :vodIndex="vodIndex"
                 :vodCurIndex="vodCurIndex"
                 :item="item"
                 :discussNum="totalPlayList.length"
-                :index="index"
+                :index="item.videoIndex"
                 :sliderDrag="sliderDrag"
                 :moveOpacity="moveOpacity"
                 :palyCartoon="palyCartoon"
                 @handleInfo="handleInfo"
               ></videoMenu>
             </view>
-            <!-- 底层图标 -->
-            <view class="vodLayer">
+            <!-- 底层图标 - 只在视频未播放时显示 -->
+            <view
+              class="vodLayer"
+              v-if="!item.vodPaly || item.loadingShow"
+              :style="{ opacity: item.vodPaly ? 0 : 1 }"
+            >
               <image
                 src="/static/icon/sound.png"
                 mode=""
@@ -160,27 +166,6 @@
           </swiper-item>
         </swiper>
         <!-- 遮罩层，防止滑动过快 -->
-        <swiper
-          class="shade-swiper"
-          :style="{
-            width: videoStyle.width,
-            height: videoStyle.height,
-            pointerEvents: showShade ? 'auto' : 'none',
-            opacity: showShade ? '1' : '0',
-          }"
-          vertical
-        >
-          <swiper-item v-for="(item, index) in 1" :key="index" class="box">
-            <!-- 底层图标 -->
-            <view class="vodLayer">
-              <image
-                src="/static/icon/sound.png"
-                mode=""
-                class="vodLayer-img"
-              ></image>
-            </view>
-          </swiper-item>
-        </swiper>
         <!-- 底部加载动画 -->
         <view class="pullup" v-if="loadShow">
           <view style="width: 32rpx; height: 32rpx; margin-right: 30rpx">
@@ -193,7 +178,7 @@
         <view
           class="flooter"
           :style="{ opacity: moveOpacity ? 0 : 1, bottom: speedBottom + 'px' }"
-          v-if="vodList.length > 0 && beforeVodInfo.sliderShow"
+          v-if="filteredVodList.length > 0 && beforeVodInfo.sliderShow"
         >
           <!-- 滑动进度条显示时间 -->
           <view class="sliderData" v-if="sliderDrag">
@@ -210,7 +195,7 @@
             @touchmove.stop.passive="touchmoveSlider"
             @touchstart.stop.passive="touchmoveSlider"
             @touchend.stop.passive="touchendSlider"
-            v-if="vodList.length > 0 && beforeVodInfo.sliderShow"
+            v-if="filteredVodList.length > 0 && beforeVodInfo.sliderShow"
           >
             <view
               class="slider-item"
@@ -244,7 +229,7 @@
           <!-- loading加载动画进度 -->
           <view
             class="loadSlider"
-            v-if="vodList.length > 0 && beforeVodInfo.loadingShow"
+            v-if="filteredVodList.length > 0 && beforeVodInfo.loadingShow"
           >
             <view :style="{ opacity: brightSlider ? 0 : 1 }">
               <view
@@ -334,6 +319,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 0.3s ease;
+  pointer-events: none; /* 防止阻挡用户交互 */
 }
 .vodLayer-img {
   width: 150rpx;
