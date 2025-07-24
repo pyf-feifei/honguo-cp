@@ -14,6 +14,12 @@
       }
     },
     {
+      "path": "src/components/EpisodeSlider/EpisodeSliderExample",
+      "style": {
+        "navigationBarTitleText": "测试"
+      }
+    },
+    {
       "path": "src/pages/theater/player-n",
       "style": {
         "navigationStyle": "custom",
@@ -95,6 +101,12 @@
       {
         "pagePath": "src/pages/user/index",
         "text": "我的",
+        "iconPath": "static/tabbar/user.png",
+        "selectedIconPath": "static/tabbar/user-active.png"
+      },
+      {
+        "pagePath": "src/components/EpisodeSlider/EpisodeSliderExample",
+        "text": "测试",
         "iconPath": "static/tabbar/user.png",
         "selectedIconPath": "static/tabbar/user-active.png"
       }

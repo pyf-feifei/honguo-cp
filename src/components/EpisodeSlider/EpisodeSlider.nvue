@@ -1,0 +1,155 @@
+<template>
+  <view
+    class="episode-slider"
+    :style="{
+      width: videoStyle.width + 'px',
+      height: videoStyle.height + 'px',
+    }"
+  >
+    <swiper
+      class="slider-container"
+      :style="{
+        width: videoStyle.width + 'px',
+        height: videoStyle.height + 'px',
+      }"
+      :vertical="true"
+      :circular="false"
+      :current="currentIndex"
+      @change="swiperChange"
+    >
+      <swiper-item
+        v-for="item in visibleItems"
+        :key="item.id"
+        class="swiper-item-container"
+      >
+        <BaseVideo
+          :item="item"
+          :is-play="item.originalIndex === currentIndex"
+          :video-style="videoStyle"
+        />
+      </swiper-item>
+    </swiper>
+
+    <!-- 集数指示器 -->
+    <view class="episode-indicator">
+      <text class="indicator-text"
+        >{{ currentIndex + 1 }} / {{ videoList.length }}</text
+      >
+    </view>
+  </view>
+</template>
+
+<script>
+import BaseVideo from '../BaseVideo/index.nvue'
+
+export default {
+  name: 'EpisodeSlider',
+  components: {
+    BaseVideo,
+  },
+  props: {
+    videoList: {
+      type: Array,
+      default: () => [],
+    },
+    initialIndex: {
+      type: Number,
+      default: 0,
+    },
+  },
+
+  data() {
+    return {
+      currentIndex: this.initialIndex,
+      visibleItems: [],
+      videoStyle: {
+        width: 0,
+        height: 0,
+      },
+    }
+  },
+
+  created() {
+    const systemInfo = uni.getSystemInfoSync()
+    this.videoStyle.width = systemInfo.screenWidth
+    this.videoStyle.height = systemInfo.windowHeight
+  },
+
+  watch: {
+    videoList: {
+      handler() {
+        this.updateVisibleItems()
+      },
+      immediate: true,
+    },
+    currentIndex(newVal) {
+      this.updateVisibleItems()
+      this.$emit('indexChange', newVal)
+      console.log('this.visibleItems ', this.visibleItems)
+    },
+  },
+
+  methods: {
+    updateVisibleItems() {
+      if (!this.videoList.length) return
+
+      const prevCount = Math.min(1, this.currentIndex) // Preload 1 instead of 2 to be safer
+      const nextCount = Math.min(
+        1,
+        this.videoList.length - 1 - this.currentIndex
+      )
+
+      const start = this.currentIndex - prevCount
+      const end = this.currentIndex + nextCount + 1
+
+      this.visibleItems = this.videoList
+        .slice(start, end)
+        .map((item, index) => ({
+          ...item,
+          id: `video_${start + index}`,
+          originalIndex: start + index,
+        }))
+    },
+
+    swiperChange(e) {
+      const newSwiperIndex = e.detail.current
+      const visibleItem = this.visibleItems.find(
+        (item) => item.originalIndex === this.currentIndex
+      )
+      const currentVisibleIndex = this.visibleItems.indexOf(visibleItem)
+
+      if (newSwiperIndex !== currentVisibleIndex) {
+        const newCurrentItem = this.visibleItems[newSwiperIndex]
+        if (newCurrentItem) {
+          this.currentIndex = newCurrentItem.originalIndex
+        }
+      }
+    },
+  },
+}
+</script>
+
+<style>
+.episode-slider {
+  flex: 1;
+  background-color: #000;
+}
+.slider-container {
+  flex: 1;
+}
+.swiper-item-container {
+  flex: 1;
+}
+.episode-indicator {
+  position: absolute;
+  top: 100rpx;
+  right: 40rpx;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 10rpx 20rpx;
+  border-radius: 20rpx;
+}
+.indicator-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+</style>
