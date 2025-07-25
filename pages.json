@@ -16,7 +16,7 @@
     {
       "path": "src/components/EpisodeSlider/EpisodeSliderExample",
       "style": {
-        "navigationBarTitleText": "测试"
+        "navigationStyle": "custom"
       }
     },
     {

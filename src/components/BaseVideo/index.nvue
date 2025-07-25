@@ -14,7 +14,7 @@
       :controls="false"
       :show-center-play-btn="false"
       :autoplay="isPlay"
-      :loop="true"
+      :loop="loop"
       object-fit="contain"
       @play="onPlay"
       @pause="onPause"
@@ -95,6 +95,10 @@ export default {
       type: Object,
       required: true,
     },
+    loop: {
+      type: Boolean,
+      default: true,
+    },
   },
   data() {
     return {
@@ -160,7 +164,7 @@ export default {
         this.showPlayOverlay = true
         this.overlayTimer = setTimeout(() => {
           this.showPlayOverlay = false
-        }, 1000)
+        }, 0)
       } else {
         // 暂停时会显示播放图标，不需要额外操作
         this.showPlayOverlay = false
@@ -168,14 +172,9 @@ export default {
     },
     play() {
       if (this.videoContext) {
+        this.isLoading = true // 显式设置为加载中
         this.videoContext.play()
-        // 手动设置状态以确保及时更新
-        setTimeout(() => {
-          if (!this.isPlaying) {
-            this.isPlaying = true
-            this.isLoading = false
-          }
-        }, 100)
+        // 播放后，状态将在onPlay或onTimeUpdate中更新
       }
     },
     pause() {
@@ -186,7 +185,7 @@ export default {
           if (this.isPlaying) {
             this.isPlaying = false
           }
-        }, 100)
+        }, 0)
       }
     },
     onPlay() {
@@ -241,7 +240,7 @@ export default {
       if (this.wasPlayingBeforeDrag) {
         setTimeout(() => {
           this.play()
-        }, 100)
+        }, 0)
       }
 
       this.isDragging = false
@@ -254,7 +253,6 @@ export default {
 .video-wrapper {
   flex: 1;
   position: relative;
-  background-color: #000;
 }
 .video-player {
   width: 100%;
@@ -273,7 +271,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* background-color: rgba(0, 0, 0, 0.5); */
   justify-content: center;
   align-items: center;
 }
@@ -302,7 +300,7 @@ export default {
   bottom: 0;
   justify-content: center;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.2);
+  /* background-color: rgba(0, 0, 0, 0.2); */
 }
 .play-overlay-icon {
   font-size: 80rpx;

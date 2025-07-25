@@ -26,6 +26,8 @@
           :item="item"
           :is-play="item.originalIndex === currentIndex"
           :video-style="videoStyle"
+          :loop="item.originalIndex === videoList.length - 1"
+          @ended="onVideoEnded"
         />
       </swiper-item>
     </swiper>
@@ -90,13 +92,14 @@ export default {
   },
 
   methods: {
+    // 在 updateVisibleItems() 方法中修改预加载数量
     updateVisibleItems() {
       if (!this.videoList.length) return
 
-      const prevCount = Math.min(1, this.currentIndex) // Preload 1 instead of 2 to be safer
+      const prevCount = Math.min(2, this.currentIndex) // 前面预加载2个视频
       const nextCount = Math.min(
-        1,
-        this.videoList.length - 1 - this.currentIndex
+        2,
+        this.videoList.length - 1 - this.currentIndex // 后面预加载2个视频
       )
 
       const start = this.currentIndex - prevCount
@@ -110,7 +113,6 @@ export default {
           originalIndex: start + index,
         }))
     },
-
     swiperChange(e) {
       const newSwiperIndex = e.detail.current
       const visibleItem = this.visibleItems.find(
@@ -123,6 +125,14 @@ export default {
         if (newCurrentItem) {
           this.currentIndex = newCurrentItem.originalIndex
         }
+      }
+    },
+    onVideoEnded() {
+      if (this.currentIndex < this.videoList.length - 1) {
+        this.currentIndex++
+      } else {
+        // Optionally handle end of playlist, e.g., loop back to start or show a message
+        console.log('End of playlist')
       }
     },
   },
