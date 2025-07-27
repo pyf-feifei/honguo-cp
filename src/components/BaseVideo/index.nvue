@@ -22,6 +22,7 @@
       @error="onError"
       @timeupdate="onTimeUpdate"
       @click.stop="onVideoClick"
+      @waiting="onWaiting"
       class="video-player"
       :style="{
         width: videoStyle.width + 'px',
@@ -152,6 +153,9 @@ export default {
     },
     onVideoClick(e) {
       this.onWrapperClick(e)
+    },
+    onWaiting() {
+      this.isLoading = true
     },
     showOperationFeedback() {
       // 清除之前的定时器

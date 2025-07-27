@@ -112,6 +112,7 @@ export default {
           id: `video_${start + index}`,
           originalIndex: start + index,
         }))
+      console.log('this.visibleItems ', this.visibleItems)
     },
     swiperChange(e) {
       const newSwiperIndex = e.detail.current
