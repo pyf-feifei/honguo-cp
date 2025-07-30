@@ -204,8 +204,29 @@ export default {
       this.$emit('ended')
     },
     onError(e) {
-      console.error(`视频[${this.item.id}]播放错误:`, e.detail.errMsg)
+      // 安全地处理错误信息，避免undefined错误
+      const errorMsg =
+        e?.detail?.errMsg ||
+        e?.detail?.errorMessage ||
+        e?.detail?.message ||
+        '未知播放错误'
+      const errorCode = e?.detail?.errCode || e?.detail?.code || 'UNKNOWN'
+
+      console.error(`视频[${this.item.id}]播放错误:`, {
+        message: errorMsg,
+        code: errorCode,
+        detail: e?.detail,
+      })
+
       this.isLoading = false
+
+      // 向父组件发送错误事件
+      this.$emit('error', {
+        videoId: this.item.id,
+        message: errorMsg,
+        code: errorCode,
+        originalEvent: e,
+      })
     },
     onTimeUpdate(e) {
       if (this.isDragging) return
