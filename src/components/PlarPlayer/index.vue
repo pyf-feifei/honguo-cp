@@ -1,9 +1,9 @@
 <template>
-  <div class="plyr-container">
+  <view class="plyr-container">
     <video ref="videoPlayer" class="plyr-video" playsinline controls>
       <slot></slot>
     </video>
-  </div>
+  </view>
 </template>
 
 <script setup>
