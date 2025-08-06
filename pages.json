@@ -61,6 +61,12 @@
       "style": {
         "navigationBarTitleText": "个人中心"
       }
+    },
+    {
+      "path": "src/components/VideoSlider",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {
@@ -109,6 +115,12 @@
         "text": "测试",
         "iconPath": "static/tabbar/user.png",
         "selectedIconPath": "static/tabbar/user-active.png"
+      },
+      {
+        "pagePath": "src/components/VideoSlider",
+        "text": "滑块",
+        "iconPath": "static/tabbar/theater.png",
+        "selectedIconPath": "static/tabbar/theater-active.png"
       }
     ]
   },

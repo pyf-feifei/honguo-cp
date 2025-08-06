@@ -18,13 +18,13 @@
       @change="swiperChange"
     >
       <swiper-item
-        v-for="item in visibleItems"
+        v-for="(item, index) in processedList"
         :key="item.id"
         class="swiper-item-container"
       >
-        <BaseVideo
+        <HlsBaseVideo
           :item="item"
-          :is-play="item.originalIndex === currentIndex"
+          :is-play="index === currentIndex"
           :video-style="videoStyle"
           :loop="item.originalIndex === videoList.length - 1"
           @ended="onVideoEnded"
@@ -42,12 +42,12 @@
 </template>
 
 <script>
-import BaseVideo from '../BaseVideo/index.nvue'
+import HlsBaseVideo from '../HlsBaseVideo/index.vue'
 
 export default {
   name: 'EpisodeSlider',
   components: {
-    BaseVideo,
+    HlsBaseVideo,
   },
   props: {
     videoList: {
@@ -63,7 +63,7 @@ export default {
   data() {
     return {
       currentIndex: this.initialIndex,
-      visibleItems: [],
+      // visibleItems: [], // No longer needed
       videoStyle: {
         width: 0,
         height: 0,
@@ -78,62 +78,29 @@ export default {
   },
 
   watch: {
-    videoList: {
-      handler() {
-        this.updateVisibleItems()
-      },
-      immediate: true,
-    },
     currentIndex(newVal) {
-      this.updateVisibleItems()
       this.$emit('indexChange', newVal)
-      console.log('this.visibleItems ', this.visibleItems)
+    },
+  },
+
+  computed: {
+    processedList() {
+      return this.videoList.map((item, index) => ({
+        ...item,
+        id: item.url || `video_${index}`, // Use URL as a key, or index as a fallback
+      }))
     },
   },
 
   methods: {
-    // 在 updateVisibleItems() 方法中修改预加载数量
-    updateVisibleItems() {
-      if (!this.videoList.length) return
-
-      const prevCount = Math.min(2, this.currentIndex) // 前面预加载2个视频
-      const nextCount = Math.min(
-        2,
-        this.videoList.length - 1 - this.currentIndex // 后面预加载2个视频
-      )
-
-      const start = this.currentIndex - prevCount
-      const end = this.currentIndex + nextCount + 1
-
-      this.visibleItems = this.videoList
-        .slice(start, end)
-        .map((item, index) => ({
-          ...item,
-          id: `video_${start + index}`,
-          originalIndex: start + index,
-        }))
-      console.log('this.visibleItems ', this.visibleItems)
-    },
     swiperChange(e) {
-      const newSwiperIndex = e.detail.current
-      const visibleItem = this.visibleItems.find(
-        (item) => item.originalIndex === this.currentIndex
-      )
-      const currentVisibleIndex = this.visibleItems.indexOf(visibleItem)
-
-      if (newSwiperIndex !== currentVisibleIndex) {
-        const newCurrentItem = this.visibleItems[newSwiperIndex]
-        if (newCurrentItem) {
-          this.currentIndex = newCurrentItem.originalIndex
-        }
-      }
+      this.currentIndex = e.detail.current
     },
     onVideoEnded() {
       if (this.currentIndex < this.videoList.length - 1) {
         this.currentIndex++
       } else {
         // Optionally handle end of playlist, e.g., loop back to start or show a message
-        console.log('End of playlist')
       }
     },
   },

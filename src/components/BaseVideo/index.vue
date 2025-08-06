@@ -76,7 +76,7 @@
 </template>
 
 <script>
-import CustomSlider from '../CustomSlider/index.nvue'
+import CustomSlider from '../CustomSlider/index.vue'
 
 export default {
   name: 'BaseVideo',

@@ -62,21 +62,15 @@
         ></cover-image>
 
         <!-- 进度条 -->
-        <!-- 视觉展示 -->
-        <cover-view class="progress-bar-container">
-          <cover-view class="progress-bar-bg"></cover-view>
-          <cover-view
-            class="progress-bar-fg"
-            :style="{ width: progressPercent + '%' }"
-          ></cover-view>
-        </cover-view>
-        <!-- 触摸区域 -->
-        <cover-view
-          class="progress-touch-area"
-          @touchstart="onProgressTouchStart"
-          @touchmove="onProgressTouchMove"
-          @touchend="onProgressTouchEnd"
-        ></cover-view>
+        <CustomCoverSlider
+          class="progress-slider"
+          :min="0"
+          :max="duration"
+          :value="currentTime"
+          @dragstart="onSliderDragStart"
+          @changing="onSliderChanging"
+          @change="onSliderChange"
+        />
 
         <!-- 时间显示 -->
         <cover-view class="time-display">
@@ -100,6 +94,9 @@ import {
 // #ifdef H5
 import Hls from 'hls.js'
 import PlarPlayer from './PlarPlayer/index.vue'
+// #endif
+// #ifndef H5
+import CustomCoverSlider from './CustomCoverSlider/index.vue'
 // #endif
 
 // 获取所有传入的属性
@@ -192,7 +189,8 @@ const onPause = () => {
 }
 
 const onTimeUpdate = (e) => {
-  if (e.detail) {
+  // Only update currentTime from video if not currently dragging
+  if (!isDraggingProgress.value && e.detail) {
     const newTime = e.detail.currentTime || 0
     const newDuration = e.detail.duration || duration.value
 
@@ -227,66 +225,39 @@ const onError = (e) => {
   emit('error', e)
 }
 
-// Helper function to calculate seek time from x coordinate
-const calculateAndSeek = (coordinateX) => {
+// 进度条事件处理
+const onSliderDragStart = () => {
   // #ifndef H5
-  const query = uni.createSelectorQuery().in(proxy)
-  query
-    .select('.progress-touch-area')
-    .boundingClientRect((data) => {
-      if (data) {
-        const offsetX = coordinateX - data.left
-        const progress = Math.max(0, Math.min(1, offsetX / data.width))
-        const newTime = progress * duration.value
-        seek(newTime)
-        // Manually update for better responsiveness during drag
-        if (isDraggingProgress.value) {
-          currentTime.value = newTime
-        }
-      }
-    })
-    .exec()
-  // #endif
-}
-
-// 进度条拖动
-const onProgressTouchStart = (e) => {
-  // console.log('onProgressTouchStart', e)
-
-  // #ifndef H5
+  if (isDraggingProgress.value) return
   isDraggingProgress.value = true
-  hasMoved.value = false // 重置移动标记
   wasPlayingBeforeDrag.value = isPlaying.value
-  if (isPlaying.value) {
+  if (wasPlayingBeforeDrag.value) {
     pause()
   }
   // #endif
 }
 
-const onProgressTouchMove = (e) => {
-  // console.log('onProgressTouchMove', e)
+const onSliderChanging = (e) => {
   // #ifndef H5
-  if (isDraggingProgress.value) {
-    hasMoved.value = true // 标记为已移动
-    calculateAndSeek(e.touches[0].pageX)
-  }
+  if (!isDraggingProgress.value) return
+  const newTime = e.value
+  currentTime.value = newTime // Update UI in real-time
   // #endif
 }
 
-const onProgressTouchEnd = (e) => {
-  // console.log('onProgressTouchEnd', e)
+const onSliderChange = (e) => {
   // #ifndef H5
-  if (isDraggingProgress.value) {
-    // 如果没有移动过，说明是点击
-    if (!hasMoved.value) {
-      calculateAndSeek(e.changedTouches[0].pageX)
-    }
+  const newTime = e.value
+  currentTime.value = newTime
+  seek(newTime)
 
-    isDraggingProgress.value = false
-    if (wasPlayingBeforeDrag.value) {
-      play()
-    }
+  if (wasPlayingBeforeDrag.value) {
+    play()
   }
+  // Reset dragging state after a short delay to prevent conflicts
+  setTimeout(() => {
+    isDraggingProgress.value = false
+  }, 100)
   // #endif
 }
 
@@ -421,6 +392,8 @@ defineExpose({
     height: 44px;
     background-color: rgba(0, 0, 0, 0.4);
     z-index: 20;
+    display: flex;
+    align-items: center;
   }
 
   .control-button {
@@ -431,69 +404,12 @@ defineExpose({
     height: 24px;
   }
 
-  .progress-container {
+  .progress-slider {
     position: absolute;
     left: 44px;
     right: 100px;
     top: 0;
     height: 44px;
-    /* #ifdef APP-PLUS || H5 */
-    display: flex;
-    align-items: center;
-    /* #endif */
-  }
-
-  .progress-bar {
-    width: 100%;
-    height: 4px;
-    background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    /* #ifndef APP-PLUS || H5 */
-    position: absolute;
-    top: 20px;
-    /* #endif */
-  }
-
-  .progress-bar-active {
-    width: 0;
-    height: 100%;
-    background-color: #fff;
-    border-radius: 2px;
-  }
-
-  .progress-bar-container {
-    position: absolute;
-    left: 44px;
-    right: 100px;
-    top: 20px;
-    height: 4px;
-  }
-
-  .progress-bar-bg {
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-  }
-
-  .progress-bar-fg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    background-color: #fff;
-    border-radius: 2px;
-  }
-
-  .progress-touch-area {
-    position: absolute;
-    left: 44px;
-    right: 100px;
-    top: 0;
-    height: 44px;
-    z-index: 25;
-    /* 设置一个几乎不可见的背景色，以确保该区域能响应触摸事件 */
-    background-color: rgba(0, 0, 0, 0.001);
   }
 
   .time-display {
