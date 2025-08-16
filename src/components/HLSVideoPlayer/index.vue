@@ -144,12 +144,27 @@ export default {
         params: time,
       }
     },
+    // 启用广告过滤器
+    enableAdFilter() {
+      this.renderFunc = {
+        name: 'enableAdFilterHandler',
+        params: null,
+      }
+    },
+    // 禁用广告过滤器
+    disableAdFilter() {
+      this.renderFunc = {
+        name: 'disableAdFilterHandler',
+        params: null,
+      }
+    },
   },
 }
 </script>
 
 <script module="hlsVideoPlayer" lang="renderjs">
 import hlsjs from 'hls.js'
+import { AdRemoverLoader } from './hls-ad-remover-fixed.js'
 const PLAYER_ID = 'HLS_VIDEO_PLAYER'
 
 export default {
@@ -221,7 +236,9 @@ export default {
         maxBufferSize: 60 * 1000 * 1000,
         maxBufferHole: 0.5,
         lowLatencyMode: true,
-        backBufferLength: 90
+        backBufferLength: 90,
+        // 集成广告过滤器
+        pLoader: AdRemoverLoader
       })
       this.hlsPlayer.loadSource(src)
       this.hlsPlayer.attachMedia(this.videoEl)
@@ -441,6 +458,16 @@ export default {
     toSeekHandler(time) {
       if (this.videoEl) {
         this.videoEl.currentTime = time
+      }
+    },
+    enableAdFilterHandler() {
+      if (this.hlsPlayer && this.hlsPlayer.config && this.hlsPlayer.config.pLoader) {
+        this.hlsPlayer.config.pLoader.prototype.enable && this.hlsPlayer.config.pLoader.prototype.enable()
+      }
+    },
+    disableAdFilterHandler() {
+      if (this.hlsPlayer && this.hlsPlayer.config && this.hlsPlayer.config.pLoader) {
+        this.hlsPlayer.config.pLoader.prototype.disable && this.hlsPlayer.config.pLoader.prototype.disable()
       }
     },
     viewportChange(props) {
