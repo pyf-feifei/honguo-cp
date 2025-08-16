@@ -43,14 +43,6 @@
         <text class="pause-icon">▶</text>
       </view>
 
-      <!-- 播放时的暂停提示，点击后显示 -->
-      <view
-        class="play-overlay"
-        v-if="isPlaying && showPlayOverlay"
-        @click.stop
-      >
-        <text class="play-overlay-icon">⏸</text>
-      </view>
 
       <view class="bottom-controls" @click.stop>
         <CustomSlider
@@ -112,8 +104,6 @@ export default {
       buffered: 0,
       isDragging: false,
       wasPlayingBeforeDrag: false,
-      showPlayOverlay: false,
-      overlayTimer: null,
     }
   },
   watch: {
@@ -140,11 +130,6 @@ export default {
       this.play()
     }
   },
-  beforeDestroy() {
-    if (this.overlayTimer) {
-      clearTimeout(this.overlayTimer)
-    }
-  },
   methods: {
     onWrapperClick() {
       if (this.isDragging) return
@@ -154,24 +139,9 @@ export default {
       } else {
         this.play()
       }
-      this.showOperationFeedback()
     },
     onCanPlay() {
       this.isLoading = false
-    },
-    showOperationFeedback() {
-      if (this.overlayTimer) {
-        clearTimeout(this.overlayTimer)
-      }
-
-      if (this.isPlaying) {
-        this.showPlayOverlay = true
-        this.overlayTimer = setTimeout(() => {
-          this.showPlayOverlay = false
-        }, 300)
-      } else {
-        this.showPlayOverlay = false
-      }
     },
     play() {
       if (this.$refs.hlsPlayer) {
@@ -293,20 +263,6 @@ export default {
 .pause-icon {
   font-size: 100rpx;
   color: rgba(255, 255, 255, 0.8);
-}
-.play-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.play-overlay-icon {
-  font-size: 80rpx;
-  color: rgba(255, 255, 255, 0.9);
 }
 .bottom-controls {
   position: absolute;
