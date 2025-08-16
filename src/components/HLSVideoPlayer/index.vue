@@ -63,6 +63,7 @@ export default {
       currentTime: 0,
       duration: 0,
       playing: false,
+      buffered: 0,
     }
   },
   watch: {
@@ -194,7 +195,7 @@ export default {
       videoEl.playbackRate = playbackRate
       videoEl.id = this.playerId
       // videoEl.setAttribute('x5-video-player-type', 'h5')
-      videoEl.setAttribute('preload', 'auto')
+      videoEl.setAttribute('preload', 'metadata')
       videoEl.setAttribute('playsinline', true)
       videoEl.setAttribute('webkit-playsinline', true)
       videoEl.setAttribute('crossorigin', 'anonymous')
@@ -213,7 +214,15 @@ export default {
     },
     // 播放视频流
     initHlsPlayer(src) {
-      this.hlsPlayer = new hlsjs()
+      this.hlsPlayer = new hlsjs({
+        // 优化配置减少卡顿
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        maxBufferSize: 60 * 1000 * 1000,
+        maxBufferHole: 0.5,
+        lowLatencyMode: true,
+        backBufferLength: 90
+      })
       this.hlsPlayer.loadSource(src)
       this.hlsPlayer.attachMedia(this.videoEl)
 
@@ -225,6 +234,24 @@ export default {
       this.hlsPlayer.on(hlsjs.Events.ERROR, (event, data) => {
         // hls 视频加载错误
         this.$ownerInstance.callMethod('eventEmit', { event: 'hlsError', data })
+      })
+
+      // 监听缓冲事件
+      this.hlsPlayer.on(hlsjs.Events.BUFFER_APPENDED, () => {
+        if (this.videoEl.buffered.length > 0) {
+          const buffered = this.videoEl.buffered.end(this.videoEl.buffered.length - 1)
+          this.$ownerInstance.callMethod('eventEmit', {
+            event: 'progress',
+            data: {
+              buffered,
+              duration: this.videoEl.duration
+            }
+          })
+          this.$ownerInstance.callMethod('setViewData', {
+            key: 'buffered',
+            value: buffered
+          })
+        }
       })
     },
     // 监听视频相关事件
@@ -314,6 +341,26 @@ export default {
       }
       this.videoEl.removeEventListener('timeupdate', timeupdateHandler)
       this.videoEl.addEventListener('timeupdate', timeupdateHandler)
+
+      // 缓冲进度监听
+      const progressHandler = (e) => {
+        if (this.videoEl.buffered.length > 0) {
+          const buffered = this.videoEl.buffered.end(this.videoEl.buffered.length - 1)
+          this.$ownerInstance.callMethod('eventEmit', {
+            event: 'progress',
+            data: {
+              buffered,
+              duration: this.videoEl.duration
+            }
+          })
+          this.$ownerInstance.callMethod('setViewData', {
+            key: 'buffered',
+            value: buffered
+          })
+        }
+      }
+      this.videoEl.removeEventListener('progress', progressHandler)
+      this.videoEl.addEventListener('progress', progressHandler)
 
       // 倍速播放监听
       const ratechangeHandler = (e) => {

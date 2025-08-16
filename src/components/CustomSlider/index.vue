@@ -10,6 +10,7 @@
       :class="{ dragging: isDragging }"
       :style="trackStyle"
     >
+      <view class="progress-buffered" :style="bufferedStyle"></view>
       <view class="progress-current" :style="progressStyle"></view>
       <view
         class="progress-handle"
@@ -33,6 +34,7 @@ export default {
     step: { type: Number, default: 1 },
     disabled: { type: Boolean, default: false },
     value: { type: Number, default: 0 },
+    buffered: { type: Number, default: 0 },
     activeColor: { type: String, default: '#FFFFFF' },
     backgroundColor: { type: String, default: 'rgba(255, 255, 255, 0.3)' },
     blockSize: { type: Number, default: 20 },
@@ -53,9 +55,18 @@ export default {
       const val = Math.max(this.min, Math.min(this.max, this.currentValue))
       return (val - this.min) / (this.max - this.min)
     },
+    bufferedPercentage() {
+      if (this.max <= this.min) return 0
+      const val = Math.max(this.min, Math.min(this.max, this.buffered))
+      return (val - this.min) / (this.max - this.min)
+    },
     progressStyle() {
       const width = this.percentage * 100
       return `width: ${width}%; background-color: ${this.activeColor};`
+    },
+    bufferedStyle() {
+      const width = this.bufferedPercentage * 100
+      return `width: ${width}%; background-color: rgba(255, 255, 255, 0.5);`
     },
     trackStyle() {
       return `background-color: ${this.backgroundColor};`
@@ -161,6 +172,16 @@ export default {
   border-radius: 5rpx;
 }
 
+.progress-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  border-radius: 3rpx;
+  z-index: 0;
+}
+
 .progress-current {
   position: absolute;
   top: 0;
@@ -169,6 +190,7 @@ export default {
   width: 0;
   border-radius: 3rpx;
   transition: width 0.1s linear;
+  z-index: 1;
 }
 
 .progress-handle {

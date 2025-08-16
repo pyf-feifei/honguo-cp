@@ -7,6 +7,10 @@
   >
     <cover-view class="slider-rail">
       <cover-view
+        class="slider-buffered"
+        :style="{ width: bufferedPercent + '%' }"
+      ></cover-view>
+      <cover-view
         class="slider-progress"
         :style="{ width: progressPercent + '%' }"
       ></cover-view>
@@ -25,6 +29,7 @@ const props = defineProps({
   min: { type: Number, default: 0 },
   max: { type: Number, default: 100 },
   value: { type: Number, default: 0 },
+  buffered: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['change', 'changing', 'dragstart'])
@@ -36,6 +41,12 @@ const isDragging = ref(false)
 const progressPercent = computed(() => {
   if (props.max <= props.min) return 0
   const percent = ((props.value - props.min) / (props.max - props.min)) * 100
+  return Math.max(0, Math.min(100, percent))
+})
+
+const bufferedPercent = computed(() => {
+  if (props.max <= props.min) return 0
+  const percent = ((props.buffered - props.min) / (props.max - props.min)) * 100
   return Math.max(0, Math.min(100, percent))
 })
 
@@ -114,10 +125,23 @@ const proceed = (e, eventType) => {
     position: relative;
   }
 
+  .slider-buffered {
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 2px;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
   .slider-progress {
     height: 100%;
     background-color: #fff;
     border-radius: 2px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
   }
 
   .slider-thumb {

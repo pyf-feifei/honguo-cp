@@ -21,6 +21,7 @@
       @error="onError"
       @timeupdate="onTimeUpdate"
       @canplay="onCanPlay"
+      @progress="onProgress"
       class="video-player"
       :style="{
         width: videoStyle.width + 'px',
@@ -57,6 +58,7 @@
           :min="0"
           :max="duration"
           :value="currentTime"
+          :buffered="buffered"
           :step="1"
           :disabled="false"
           activeColor="#ffffff"
@@ -107,6 +109,7 @@ export default {
       posterUrl: '',
       duration: 0,
       currentTime: 0,
+      buffered: 0,
       isDragging: false,
       wasPlayingBeforeDrag: false,
       showPlayOverlay: false,
@@ -209,6 +212,11 @@ export default {
       this.currentTime = Number(currentTime)
       if (duration && !isNaN(duration) && duration > 0) {
         this.duration = Number(duration)
+      }
+    },
+    onProgress(e) {
+      if (e && e.buffered !== undefined) {
+        this.buffered = Number(e.buffered)
       }
     },
     onSliderChanging(e) {
