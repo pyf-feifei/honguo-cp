@@ -253,23 +253,6 @@ export default {
         this.$ownerInstance.callMethod('eventEmit', { event: 'hlsError', data })
       })
 
-      // 监听缓冲事件
-      this.hlsPlayer.on(hlsjs.Events.BUFFER_APPENDED, () => {
-        if (this.videoEl.buffered.length > 0) {
-          const buffered = this.videoEl.buffered.end(this.videoEl.buffered.length - 1)
-          this.$ownerInstance.callMethod('eventEmit', {
-            event: 'progress',
-            data: {
-              buffered,
-              duration: this.videoEl.duration
-            }
-          })
-          this.$ownerInstance.callMethod('setViewData', {
-            key: 'buffered',
-            value: buffered
-          })
-        }
-      })
     },
     // 监听视频相关事件
     listenVideoEvent() {
@@ -360,21 +343,28 @@ export default {
       this.videoEl.addEventListener('timeupdate', timeupdateHandler)
 
       // 缓冲进度监听
-      const progressHandler = (e) => {
-        if (this.videoEl.buffered.length > 0) {
-          const buffered = this.videoEl.buffered.end(this.videoEl.buffered.length - 1)
-          this.$ownerInstance.callMethod('eventEmit', {
-            event: 'progress',
-            data: {
-              buffered,
-              duration: this.videoEl.duration
-            }
-          })
-          this.$ownerInstance.callMethod('setViewData', {
-            key: 'buffered',
-            value: buffered
-          })
+      const progressHandler = () => {
+        const bufferedRanges = []
+        if (this.videoEl && this.videoEl.buffered) {
+          for (let i = 0; i < this.videoEl.buffered.length; i++) {
+            bufferedRanges.push({
+              start: this.videoEl.buffered.start(i),
+              end: this.videoEl.buffered.end(i),
+            })
+          }
         }
+
+        this.$ownerInstance.callMethod('eventEmit', {
+          event: 'progress',
+          data: {
+            buffered: bufferedRanges,
+            duration: this.videoEl.duration,
+          },
+        })
+        this.$ownerInstance.callMethod('setViewData', {
+          key: 'buffered',
+          value: bufferedRanges,
+        })
       }
       this.videoEl.removeEventListener('progress', progressHandler)
       this.videoEl.addEventListener('progress', progressHandler)

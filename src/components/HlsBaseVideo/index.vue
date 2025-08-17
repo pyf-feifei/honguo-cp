@@ -43,7 +43,6 @@
         <text class="pause-icon">▶</text>
       </view>
 
-
       <view class="bottom-controls" @click.stop>
         <CustomSlider
           class="custom-slider-full"
@@ -101,7 +100,7 @@ export default {
       posterUrl: '',
       duration: 0,
       currentTime: 0,
-      buffered: 0,
+      buffered: [],
       isDragging: false,
       wasPlayingBeforeDrag: false,
     }
@@ -121,6 +120,10 @@ export default {
     'item.url'(newUrl) {
       if (newUrl) {
         this.isLoading = true
+        // 重置播放状态
+        this.currentTime = 0
+        this.duration = 0
+        this.buffered = []
       }
     },
   },
@@ -185,8 +188,8 @@ export default {
       }
     },
     onProgress(e) {
-      if (e && e.buffered !== undefined) {
-        this.buffered = Number(e.buffered)
+      if (e && Array.isArray(e.buffered)) {
+        this.buffered = e.buffered
       }
     },
     onSliderChanging(e) {

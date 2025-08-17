@@ -10,7 +10,12 @@
       :class="{ dragging: isDragging }"
       :style="trackStyle"
     >
-      <view class="progress-buffered" :style="bufferedStyle"></view>
+      <view
+        v-for="(range, index) in buffered"
+        :key="index"
+        class="progress-buffered"
+        :style="getBufferedRangeStyle(range)"
+      ></view>
       <view class="progress-current" :style="progressStyle"></view>
       <view
         class="progress-handle"
@@ -34,7 +39,7 @@ export default {
     step: { type: Number, default: 1 },
     disabled: { type: Boolean, default: false },
     value: { type: Number, default: 0 },
-    buffered: { type: Number, default: 0 },
+    buffered: { type: Array, default: () => [] },
     activeColor: { type: String, default: '#FFFFFF' },
     backgroundColor: { type: String, default: 'rgba(255, 255, 255, 0.3)' },
     blockSize: { type: Number, default: 20 },
@@ -55,18 +60,9 @@ export default {
       const val = Math.max(this.min, Math.min(this.max, this.currentValue))
       return (val - this.min) / (this.max - this.min)
     },
-    bufferedPercentage() {
-      if (this.max <= this.min) return 0
-      const val = Math.max(this.min, Math.min(this.max, this.buffered))
-      return (val - this.min) / (this.max - this.min)
-    },
     progressStyle() {
       const width = this.percentage * 100
       return `width: ${width}%; background-color: ${this.activeColor};`
-    },
-    bufferedStyle() {
-      const width = this.bufferedPercentage * 100
-      return `width: ${width}%; background-color: rgba(255, 255, 255, 0.5);`
     },
     trackStyle() {
       return `background-color: ${this.backgroundColor};`
@@ -97,6 +93,12 @@ export default {
     })
   },
   methods: {
+    getBufferedRangeStyle(range) {
+      if (this.max <= this.min || !range) return ''
+      const left = ((range.start - this.min) / (this.max - this.min)) * 100
+      const width = ((range.end - range.start) / (this.max - this.min)) * 100
+      return `left: ${left}%; width: ${width}%; background-color: rgba(255, 255, 255, 0.5);`
+    },
     getTrackInfo() {
       uni
         .createSelectorQuery()
@@ -177,7 +179,6 @@ export default {
   top: 0;
   left: 0;
   height: 100%;
-  width: 0;
   border-radius: 3rpx;
   z-index: 0;
 }
