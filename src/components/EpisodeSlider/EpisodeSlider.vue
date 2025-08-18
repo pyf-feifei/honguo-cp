@@ -63,6 +63,21 @@ export default {
       type: Number,
       default: 0,
     },
+    // 是否启用组件清理（清理远离当前位置的组件以节省内存）
+    enableCleanup: {
+      type: Boolean,
+      default: false, // 默认不清理
+    },
+    // 组件保持范围（当enableCleanup为true时生效）
+    keepRange: {
+      type: Number,
+      default: 5, // 保持前后各5个组件
+    },
+    // 组件加载范围
+    loadRange: {
+      type: Number,
+      default: 2, // 加载前后各2个组件
+    },
   },
 
   data() {
@@ -74,8 +89,6 @@ export default {
       },
       // 记录哪些组件已经被创建
       createdComponents: new Set(),
-      // 批次加载状态
-      batchLoadingComplete: false,
     }
   },
 
@@ -88,8 +101,8 @@ export default {
   watch: {
     currentIndex(newVal) {
       this.$emit('indexChange', newVal)
-      // 立即创建当前可见范围的组件
-      this.createVisibleComponents()
+      // 动态创建可见范围的组件
+      this.loadComponentsAroundIndex(newVal)
     },
   },
 
@@ -103,10 +116,8 @@ export default {
   },
 
   mounted() {
-    // 初始化时立即创建可见范围的组件
-    this.createVisibleComponents()
-    // 延迟创建其他组件
-    this.startBatchLoading()
+    // 初始化时只创建当前可见范围的组件
+    this.loadComponentsAroundIndex(this.currentIndex)
   },
 
   methods: {
@@ -126,52 +137,54 @@ export default {
       return this.createdComponents.has(index)
     },
     
-    // 创建当前可见范围的组件
-    createVisibleComponents() {
-      const visibleRange = 2
-      for (let i = this.currentIndex - visibleRange; i <= this.currentIndex + visibleRange; i++) {
+    // 动态加载指定索引周围的组件
+    loadComponentsAroundIndex(centerIndex) {
+      let hasNewComponents = false
+      
+      // 计算需要加载的索引范围（使用props中的loadRange）
+      for (let i = centerIndex - this.loadRange; i <= centerIndex + this.loadRange; i++) {
         if (i >= 0 && i < this.videoList.length) {
-          this.createdComponents.add(i)
+          // 只加载还未创建的组件
+          if (!this.createdComponents.has(i)) {
+            this.createdComponents.add(i)
+            hasNewComponents = true
+            console.log(`动态加载第${i + 1}集`)
+          }
         }
       }
-      // 触发响应式更新
-      this.$forceUpdate()
+      
+      // 只在有新组件加载时触发更新
+      if (hasNewComponents) {
+        this.$forceUpdate()
+      }
+      
+      // 根据props决定是否清理远离当前位置的组件
+      if (this.enableCleanup) {
+        this.cleanupDistantComponents(centerIndex)
+      }
     },
     
-    // 分批加载其他组件
-    async startBatchLoading() {
-      // 等待可见组件稳定加载
-      await this.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 1500))
+    // 清理远离当前位置的组件
+    cleanupDistantComponents(centerIndex) {
+      const toRemove = []
       
-      console.log('开始分批加载其他视频组件...')
-      
-      // 分批创建组件，每批3个
-      const batchSize = 3
-      const delay = 800 // 每批之间延迟800ms
-      
-      const allIndexes = Array.from({ length: this.videoList.length }, (_, i) => i)
-      const remainingIndexes = allIndexes.filter(i => !this.createdComponents.has(i))
-      
-      for (let i = 0; i < remainingIndexes.length; i += batchSize) {
-        const batch = remainingIndexes.slice(i, i + batchSize)
-        
-        // 创建这一批组件
-        batch.forEach(index => {
-          this.createdComponents.add(index)
-        })
-        
-        console.log(`创建批次 ${Math.floor(i / batchSize) + 1}: 第${batch.map(idx => idx + 1).join(',')}集`)
-        this.$forceUpdate()
-        
-        // 等待下一批
-        if (i + batchSize < remainingIndexes.length) {
-          await new Promise(resolve => setTimeout(resolve, delay))
+      // 找出需要清理的组件（使用props中的keepRange）
+      for (const index of this.createdComponents) {
+        if (Math.abs(centerIndex - index) > this.keepRange) {
+          toRemove.push(index)
         }
       }
       
-      this.batchLoadingComplete = true
-      console.log('所有视频组件创建完成')
+      // 执行清理
+      if (toRemove.length > 0) {
+        console.log(`清理组件: 第${toRemove.map(i => i + 1).join(', ')}集`)
+        toRemove.forEach(index => {
+          this.createdComponents.delete(index)
+        })
+        
+        // 触发更新
+        this.$forceUpdate()
+      }
     },
   },
 }

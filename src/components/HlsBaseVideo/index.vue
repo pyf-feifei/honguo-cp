@@ -106,16 +106,13 @@ export default {
     }
   },
   watch: {
-    isPlay(newVal, oldVal) {
+    isPlay(newVal) {
       if (this.isDragging) return
-      // 添加一个延迟，以避免快速切换导致的播放中断
-      setTimeout(() => {
-        if (newVal) {
-          this.play()
-        } else {
-          this.pause()
-        }
-      }, 50)
+      if (newVal) {
+        this.play()
+      } else {
+        this.pause()
+      }
     },
     'item.url'(newUrl) {
       if (newUrl) {
