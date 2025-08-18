@@ -20,31 +20,6 @@
       }
     },
     {
-      "path": "src/pages/theater/player-n",
-      "style": {
-        "navigationStyle": "custom",
-        "subNVues": [
-          {
-            "id": "scommentPopup",
-            "path": "src/pages/theater/com/CommentPopup",
-            "type": "popup",
-            "style": {
-              "position": "absolute",
-              "bottom": "0px",
-              "height": "100%",
-              "margin": "auto",
-              "width": "100%",
-              "mask": "float",
-              "background": "transparent",
-              "popGesture": "close",
-              "borderTopLeftRadius": "24rpx",
-              "borderTopRightRadius": "24rpx"
-            }
-          }
-        ]
-      }
-    },
-    {
       "path": "src/pages/welfare/index",
       "style": {
         "navigationBarTitleText": "福利"
@@ -60,12 +35,6 @@
       "path": "src/pages/user/index",
       "style": {
         "navigationBarTitleText": "个人中心"
-      }
-    },
-    {
-      "path": "src/components/VideoSlider",
-      "style": {
-        "navigationStyle": "custom"
       }
     }
   ],
@@ -115,12 +84,6 @@
         "text": "测试",
         "iconPath": "static/tabbar/user.png",
         "selectedIconPath": "static/tabbar/user-active.png"
-      },
-      {
-        "pagePath": "src/components/VideoSlider",
-        "text": "滑块",
-        "iconPath": "static/tabbar/theater.png",
-        "selectedIconPath": "static/tabbar/theater-active.png"
       }
     ]
   },
