@@ -15,6 +15,7 @@
       :muted="false"
       object-fit="contain"
       :poster="posterUrl"
+      :playbackRate="currentSpeed"
       @play="onPlay"
       @pause="onPause"
       @ended="onEnded"
@@ -28,6 +29,42 @@
         height: videoStyle.height + 'px',
       }"
     />
+
+    <!-- 倍速切换按钮 -->
+    <view class="speed-picker" @click.stop="showSpeedSheet">
+      <view class="speed-selector">
+        <text class="speed-text">{{ currentSpeed }}x</text>
+        <text class="speed-arrow">▼</text>
+      </view>
+    </view>
+    
+    <!-- 倍速选择弹窗 -->
+    <u-popup
+      :show="speedSheetShow"
+      @close="closeSpeedSheet"
+      mode="bottom"
+      :round="20"
+      :closeOnClickOverlay="true"
+      :safeAreaInsetBottom="false"
+    >
+      <view class="speed-popup">
+        <view class="speed-popup-title">播放速度</view>
+        <view class="speed-options">
+          <view
+            v-for="(speed, index) in speedOptions"
+            :key="index"
+            class="speed-option"
+            :class="{ 'speed-option-active': currentSpeed === speed }"
+            @click="selectSpeed(speed)"
+          >
+            <text class="speed-option-text" :class="{ 'speed-option-text-active': currentSpeed === speed }">
+              {{ speed }}x
+            </text>
+            <view v-if="currentSpeed === speed" class="speed-check">✓</view>
+          </view>
+        </view>
+      </view>
+    </u-popup>
 
     <!-- Custom Controls -->
     <view class="controls-overlay" @click.stop="onWrapperClick">
@@ -98,6 +135,11 @@ export default {
       isPlaying: false,
       isLoading: true,
       posterUrl: '',
+      currentSpeed: 1,
+      speedOptions: [0.5, 0.75, 1, 1.25, 1.5, 2],
+      currentSpeedIndex: 2, // 默认 1x 速度
+      speedSheetShow: false,
+      isClosingSpeedSheet: false,
       duration: 0,
       currentTime: 0,
       buffered: [],
@@ -133,6 +175,7 @@ export default {
   methods: {
     onWrapperClick() {
       if (this.isDragging) return
+      if (this.isClosingSpeedSheet) return
 
       if (this.isPlaying) {
         this.pause()
@@ -215,6 +258,40 @@ export default {
         this.isDragging = false
       }, 100)
     },
+    showSpeedSheet() {
+      this.isClosingSpeedSheet = false
+      this.speedSheetShow = true
+    },
+    closeSpeedSheet() {
+      this.isClosingSpeedSheet = true
+      this.speedSheetShow = false
+      // 延迟重置标志，防止关闭弹窗时触发播放/暂停
+      setTimeout(() => {
+        this.isClosingSpeedSheet = false
+      }, 300)
+    },
+    selectSpeed(speed) {
+      this.currentSpeed = speed
+      this.isClosingSpeedSheet = true
+      this.speedSheetShow = false
+      
+      // 更新当前速度索引
+      const index = this.speedOptions.indexOf(speed)
+      if (index !== -1) {
+        this.currentSpeedIndex = index
+      }
+      
+      uni.showToast({
+        title: `倍速: ${speed}x`,
+        icon: 'none',
+        duration: 1000
+      })
+      
+      // 延迟重置标志
+      setTimeout(() => {
+        this.isClosingSpeedSheet = false
+      }, 300)
+    },
   },
 }
 </script>
@@ -276,5 +353,88 @@ export default {
 .custom-slider-full {
   width: 100%;
   flex: 1;
+}
+
+.speed-picker {
+  position: absolute;
+  top: 100rpx;
+  right: 40rpx;
+  z-index: 10;
+}
+
+.speed-selector {
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 12rpx 24rpx;
+  border-radius: 25rpx;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.speed-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 500;
+  margin-right: 8rpx;
+}
+
+.speed-arrow {
+  color: #ffffff;
+  font-size: 16rpx;
+}
+
+/* 倍速弹窗样式 */
+.speed-popup {
+  background-color: #ffffff;
+  padding: 30rpx 0;
+  border-top-left-radius: 20rpx;
+  border-top-right-radius: 20rpx;
+}
+
+.speed-popup-title {
+  text-align: center;
+  color: #333333;
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-bottom: 30rpx;
+  padding: 0 40rpx;
+}
+
+.speed-options {
+  max-height: 600rpx;
+}
+
+.speed-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx 50rpx;
+  position: relative;
+}
+
+.speed-option:active {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.speed-option-active {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.speed-option-text {
+  color: #666666;
+  font-size: 30rpx;
+}
+
+.speed-option-text-active {
+  color: #333333;
+  font-weight: 500;
+}
+
+.speed-check {
+  color: #007aff;
+  font-size: 28rpx;
+  font-weight: bold;
 }
 </style>

@@ -104,6 +104,17 @@ export default {
       // 动态创建可见范围的组件
       this.loadComponentsAroundIndex(newVal)
     },
+    videoList: {
+      handler(newVal) {
+        if (newVal && newVal.length > 0) {
+          // 视频列表更新后，初始化组件
+          this.$nextTick(() => {
+            this.loadComponentsAroundIndex(this.currentIndex)
+          })
+        }
+      },
+      immediate: true
+    }
   },
 
   computed: {
@@ -117,7 +128,10 @@ export default {
 
   mounted() {
     // 初始化时只创建当前可见范围的组件
-    this.loadComponentsAroundIndex(this.currentIndex)
+    // 如果此时已有数据，立即加载；否则等待 watch 触发
+    if (this.videoList && this.videoList.length > 0) {
+      this.loadComponentsAroundIndex(this.currentIndex)
+    }
   },
 
   methods: {
@@ -139,6 +153,12 @@ export default {
     
     // 动态加载指定索引周围的组件
     loadComponentsAroundIndex(centerIndex) {
+      // 确保有视频列表数据
+      if (!this.videoList || this.videoList.length === 0) {
+        console.log('视频列表为空，跳过组件加载')
+        return
+      }
+      
       let hasNewComponents = false
       
       // 计算需要加载的索引范围（使用props中的loadRange）
@@ -155,6 +175,7 @@ export default {
       
       // 只在有新组件加载时触发更新
       if (hasNewComponents) {
+        console.log(`已创建组件索引:`, Array.from(this.createdComponents))
         this.$forceUpdate()
       }
       
@@ -204,7 +225,7 @@ export default {
 .episode-indicator {
   position: absolute;
   top: 100rpx;
-  right: 40rpx;
+  left: 40rpx;
   background-color: rgba(0, 0, 0, 0.5);
   padding: 10rpx 20rpx;
   border-radius: 20rpx;

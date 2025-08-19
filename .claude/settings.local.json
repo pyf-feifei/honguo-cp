@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "mcp__firecrawl-mcp__firecrawl_scrape",
-      "mcp__workflow3__workflow3"
+      "mcp__workflow3__workflow3",
+      "mcp__browser-tools__getConsoleLogs",
+      "mcp__browser-tools__getConsoleErrors",
+      "mcp__context7__resolve-library-id"
     ],
     "deny": [],
     "ask": []
