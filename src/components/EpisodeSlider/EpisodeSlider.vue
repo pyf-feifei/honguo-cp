@@ -7,6 +7,7 @@
     }"
   >
     <swiper
+      v-if="isHeightReady"
       class="slider-container"
       :style="{
         width: videoStyle.width + 'px',
@@ -93,6 +94,7 @@ export default {
         width: 0,
         height: 0,
       },
+      isHeightReady: false,
       // 记录哪些组件已经被创建
       createdComponents: new Set(),
     }
@@ -101,8 +103,6 @@ export default {
   created() {
     const systemInfo = uni.getSystemInfoSync()
     this.videoStyle.width = systemInfo.screenWidth
-    // 初始设置一个临时高度，将在 mounted 中获取父元素实际高度
-    this.videoStyle.height = 0
   },
 
   watch: {
@@ -134,15 +134,19 @@ export default {
   },
 
   mounted() {
-    // 获取父容器的实际高度
     this.$nextTick(() => {
-      const query = uni.createSelectorQuery()
+      const query = uni.createSelectorQuery().in(this)
       query
-        .select('.slider-wrapper')
+        .select('.episode-slider')
         .boundingClientRect((data) => {
-          console.log('父容器高度:', data)
-          if (data && data.height) {
+          if (data && data.height > 0) {
             this.videoStyle.height = data.height
+            this.isHeightReady = true
+          } else {
+            console.error('Failed to get EpisodeSlider height, using fallback.')
+            const systemInfo = uni.getSystemInfoSync()
+            this.videoStyle.height = systemInfo.windowHeight - uni.upx2px(120)
+            this.isHeightReady = true
           }
         })
         .exec()

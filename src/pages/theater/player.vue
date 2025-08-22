@@ -16,6 +16,7 @@
 
     <view class="slider-wrapper">
       <EpisodeSlider
+        v-if="showSlider"
         ref="videoSliderRef"
         :video-list="vodList"
         :initial-index="0"
@@ -62,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue'
+import { ref, onMounted, reactive, computed, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import EpisodeSlider from '../../components/EpisodeSlider/EpisodeSlider.vue'
 import VideoActions from './com/VideoActions.vue'
@@ -76,6 +77,7 @@ const allVodSources = ref([]) // 所有播放源
 const loading = ref(false)
 const bookName = ref('')
 const videoSliderRef = ref(null)
+const showSlider = ref(true)
 const isLiked = ref(false)
 const isCollected = ref(false)
 const currentVideoIndex = ref(0)
@@ -153,13 +155,14 @@ const handleSourceSelect = (item) => {
     currentSourceIndex.value = newIndex
     const newSource = allVodSources.value[newIndex]
 
-    // 切换到新的播放源数据
-    vodList.value = []
+    // 使用 v-if 强制重新渲染
+    showSlider.value = false
+    vodList.value = [] // 先清空数据
 
-    // 使用 nextTick 确保数据更新后再赋值
-    uni.$nextTick(() => {
+    nextTick(() => {
       vodList.value = newSource.data
       currentVideoIndex.value = 0
+      showSlider.value = true // 重新显示组件
 
       uni.showToast({
         title: `切换至${newSource.sourceName}`,
@@ -316,7 +319,7 @@ const fetchVodList = () => {
 
 // 组件挂载时获取视频列表
 onMounted(() => {
-  // onLoad已经处理了数据加载，这里可以添加其他初始化逻辑
+  // onMounted is now empty, can be removed if not used for other things.
 })
 </script>
 
