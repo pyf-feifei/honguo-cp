@@ -1,9 +1,15 @@
 <template>
   <view class="player-container">
     <!-- 播放源切换按钮 -->
-    <view class="source-selector" v-if="allVodSources.length > 0" @click="showSourcePicker = true">
+    <view
+      class="source-selector"
+      v-if="allVodSources.length > 0"
+      @click="showSourcePicker = true"
+    >
       <view class="source-btn">
-        <text class="source-text">{{ sourceNames[currentSourceIndex] || '选择源' }}</text>
+        <text class="source-text">{{
+          sourceNames[currentSourceIndex] || '选择源'
+        }}</text>
         <up-icon name="arrow-down" color="#fff" size="12"></up-icon>
       </view>
     </view>
@@ -74,7 +80,7 @@ const showSourcePicker = ref(false) // 显示播放源选择器
 
 // 计算播放源名称列表
 const sourceNames = computed(() => {
-  return allVodSources.value.map(source => source.sourceName || '未知源')
+  return allVodSources.value.map((source) => source.sourceName || '未知源')
 })
 
 // 计算播放源选择器的动作列表
@@ -83,7 +89,7 @@ const sourceActions = computed(() => {
     name: source.sourceName || '未知源',
     color: index === currentSourceIndex.value ? '#2979ff' : '#303133',
     fontSize: '16',
-    disabled: false
+    disabled: false,
   }))
 })
 
@@ -123,23 +129,25 @@ const handleIndexChange = (index) => {
 
 // 处理播放源选择
 const handleSourceSelect = (item) => {
-  const newIndex = allVodSources.value.findIndex(source => source.sourceName === item.name)
+  const newIndex = allVodSources.value.findIndex(
+    (source) => source.sourceName === item.name
+  )
   if (newIndex !== -1 && newIndex !== currentSourceIndex.value) {
     currentSourceIndex.value = newIndex
     const newSource = allVodSources.value[newIndex]
-    
+
     // 切换到新的播放源数据
     vodList.value = []
-    
+
     // 使用 nextTick 确保数据更新后再赋值
     uni.$nextTick(() => {
       vodList.value = newSource.data
       currentVideoIndex.value = 0
-      
+
       uni.showToast({
         title: `切换至${newSource.sourceName}`,
         icon: 'none',
-        duration: 1500
+        duration: 1500,
       })
     })
   }
@@ -226,10 +234,11 @@ const fetchVodList = () => {
 
             if (episodes.length > 0) {
               // 如果站点有多个播放源，添加编号
-              const sourceName = playFromList.length > 1 
-                ? `${site.name}-${playFromList[i]}` 
-                : site.name
-              
+              const sourceName =
+                playFromList.length > 1
+                  ? `${site.name}-${playFromList[i]}`
+                  : site.name
+
               sources.push({
                 sourceName,
                 data: episodes,
@@ -238,12 +247,13 @@ const fetchVodList = () => {
           }
 
           // 优先选择包含 m3u8 的源
-          const m3u8Sources = sources.filter(s => 
-            s.data.some(e => e.url.includes('.m3u8'))
+          const m3u8Sources = sources.filter((s) =>
+            s.data.some((e) => e.url.includes('.m3u8'))
           )
-          const sortedSources = [...m3u8Sources, ...sources.filter(s => 
-            !m3u8Sources.includes(s)
-          )]
+          const sortedSources = [
+            ...m3u8Sources,
+            ...sources.filter((s) => !m3u8Sources.includes(s)),
+          ]
 
           if (sortedSources.length > 0) {
             resolve(sortedSources)
@@ -264,7 +274,7 @@ const fetchVodList = () => {
       .then((results) => {
         // results 现在是一个数组，包含该站点的所有播放源
         if (Array.isArray(results)) {
-          results.forEach(result => {
+          results.forEach((result) => {
             allVodSources.value.push(result)
             if (!isFirstSourceLoaded) {
               vodList.value = result.data
@@ -307,7 +317,7 @@ onMounted(() => {
   top: 40rpx;
   right: 20rpx;
   z-index: 999;
-  
+
   .source-btn {
     display: flex;
     align-items: center;
@@ -316,7 +326,7 @@ onMounted(() => {
     border-radius: 30rpx;
     border: 1px solid rgba(255, 255, 255, 0.3);
     backdrop-filter: blur(10px);
-    
+
     .source-text {
       color: #fff;
       font-size: 28rpx;
@@ -324,7 +334,7 @@ onMounted(() => {
       font-weight: 500;
     }
   }
-  
+
   &:active {
     opacity: 0.8;
   }
@@ -394,5 +404,9 @@ onMounted(() => {
   color: #fff;
   font-size: 14px;
   margin-top: 5px;
+}
+::v-deep .u-action-sheet__item-wrap {
+  max-height: 50vh !important;
+  overflow-y: auto !important;
 }
 </style>
