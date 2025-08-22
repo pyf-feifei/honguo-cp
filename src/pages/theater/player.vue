@@ -19,6 +19,7 @@
       :video-list="vodList"
       :initial-index="0"
       @indexChange="handleIndexChange"
+      @back="handleBack"
     />
 
     <!-- 视频操作按钮 -->
@@ -125,6 +126,11 @@ const handleSendComment = (event) => {
 // 处理索引变化
 const handleIndexChange = (index) => {
   currentVideoIndex.value = index
+}
+
+// 处理返回事件
+const handleBack = () => {
+  uni.navigateBack()
 }
 
 // 处理播放源选择

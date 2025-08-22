@@ -32,13 +32,19 @@
           @ended="onVideoEnded"
         />
         <view v-else class="placeholder-view">
-          <text class="placeholder-text">{{ item.title || `第${index + 1}集` }}</text>
+          <text class="placeholder-text">{{
+            item.title || `第${index + 1}集`
+          }}</text>
         </view>
       </swiper-item>
     </swiper>
 
     <!-- 集数指示器 -->
     <view class="episode-indicator">
+      <!-- 返回图标 -->
+      <view class="back-icon" @click="handleBack">
+        <view class="back-arrow-shape"></view>
+      </view>
       <text class="indicator-text"
         >{{ currentIndex + 1 }} / {{ videoList.length }}</text
       >
@@ -113,8 +119,8 @@ export default {
           })
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
 
   computed: {
@@ -138,6 +144,9 @@ export default {
     swiperChange(e) {
       this.currentIndex = e.detail.current
     },
+    handleBack() {
+      this.$emit('back')
+    },
     onVideoEnded() {
       if (this.currentIndex < this.videoList.length - 1) {
         this.currentIndex++
@@ -145,12 +154,12 @@ export default {
         // Optionally handle end of playlist, e.g., loop back to start or show a message
       }
     },
-    
+
     // 判断组件是否应该被创建
     shouldCreateComponent(index) {
       return this.createdComponents.has(index)
     },
-    
+
     // 动态加载指定索引周围的组件
     loadComponentsAroundIndex(centerIndex) {
       // 确保有视频列表数据
@@ -158,11 +167,15 @@ export default {
         console.log('视频列表为空，跳过组件加载')
         return
       }
-      
+
       let hasNewComponents = false
-      
+
       // 计算需要加载的索引范围（使用props中的loadRange）
-      for (let i = centerIndex - this.loadRange; i <= centerIndex + this.loadRange; i++) {
+      for (
+        let i = centerIndex - this.loadRange;
+        i <= centerIndex + this.loadRange;
+        i++
+      ) {
         if (i >= 0 && i < this.videoList.length) {
           // 只加载还未创建的组件
           if (!this.createdComponents.has(i)) {
@@ -172,37 +185,37 @@ export default {
           }
         }
       }
-      
+
       // 只在有新组件加载时触发更新
       if (hasNewComponents) {
         console.log(`已创建组件索引:`, Array.from(this.createdComponents))
         this.$forceUpdate()
       }
-      
+
       // 根据props决定是否清理远离当前位置的组件
       if (this.enableCleanup) {
         this.cleanupDistantComponents(centerIndex)
       }
     },
-    
+
     // 清理远离当前位置的组件
     cleanupDistantComponents(centerIndex) {
       const toRemove = []
-      
+
       // 找出需要清理的组件（使用props中的keepRange）
       for (const index of this.createdComponents) {
         if (Math.abs(centerIndex - index) > this.keepRange) {
           toRemove.push(index)
         }
       }
-      
+
       // 执行清理
       if (toRemove.length > 0) {
-        console.log(`清理组件: 第${toRemove.map(i => i + 1).join(', ')}集`)
-        toRemove.forEach(index => {
+        console.log(`清理组件: 第${toRemove.map((i) => i + 1).join(', ')}集`)
+        toRemove.forEach((index) => {
           this.createdComponents.delete(index)
         })
-        
+
         // 触发更新
         this.$forceUpdate()
       }
@@ -229,6 +242,23 @@ export default {
   background-color: rgba(0, 0, 0, 0.5);
   padding: 10rpx 20rpx;
   border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+}
+.back-icon {
+  margin-right: 8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.back-arrow-shape {
+  width: 14rpx;
+  height: 14rpx;
+  border-left: 3rpx solid #fff;
+  border-bottom: 3rpx solid #fff;
+  transform: rotate(45deg);
 }
 .indicator-text {
   font-size: 28rpx;
