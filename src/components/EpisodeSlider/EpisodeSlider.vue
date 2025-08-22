@@ -3,7 +3,7 @@
     class="episode-slider"
     :style="{
       width: videoStyle.width + 'px',
-      height: videoStyle.height + 'px',
+      height: '100%',
     }"
   >
     <swiper
@@ -101,7 +101,8 @@ export default {
   created() {
     const systemInfo = uni.getSystemInfoSync()
     this.videoStyle.width = systemInfo.screenWidth
-    this.videoStyle.height = systemInfo.windowHeight
+    // 初始设置一个临时高度，将在 mounted 中获取父元素实际高度
+    this.videoStyle.height = 0
   },
 
   watch: {
@@ -133,6 +134,20 @@ export default {
   },
 
   mounted() {
+    // 获取父容器的实际高度
+    this.$nextTick(() => {
+      const query = uni.createSelectorQuery()
+      query
+        .select('.slider-wrapper')
+        .boundingClientRect((data) => {
+          console.log('父容器高度:', data)
+          if (data && data.height) {
+            this.videoStyle.height = data.height
+          }
+        })
+        .exec()
+    })
+
     // 初始化时只创建当前可见范围的组件
     // 如果此时已有数据，立即加载；否则等待 watch 触发
     if (this.videoList && this.videoList.length > 0) {
@@ -226,7 +241,8 @@ export default {
 
 <style>
 .episode-slider {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   background-color: #000;
 }
 .slider-container {

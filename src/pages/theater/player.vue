@@ -14,14 +14,17 @@
       </view>
     </view>
 
-    <EpisodeSlider
-      ref="videoSliderRef"
-      :video-list="vodList"
-      :initial-index="0"
-      @indexChange="handleIndexChange"
-      @back="handleBack"
-    />
+    <view class="slider-wrapper">
+      <EpisodeSlider
+        ref="videoSliderRef"
+        :video-list="vodList"
+        :initial-index="0"
+        @indexChange="handleIndexChange"
+        @back="handleBack"
+      />
+    </view>
 
+    <AdComponent :ad-list="adList" @adClick="handleAdClick" />
     <!-- 视频操作按钮 -->
     <!-- <VideoActions
       :video-item="currentVideo"
@@ -64,6 +67,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import EpisodeSlider from '../../components/EpisodeSlider/EpisodeSlider.vue'
 import VideoActions from './com/VideoActions.vue'
 import CommentPopup from './com/CommentPopup.vue'
+import AdComponent from '../../components/AdComponent/index.vue'
 import { API_SITES } from '../../config.js'
 
 // 视频列表数据
@@ -78,6 +82,13 @@ const currentVideoIndex = ref(0)
 const showCommentPopup = ref(false)
 const currentSourceIndex = ref(0) // 当前选中的播放源索引
 const showSourcePicker = ref(false) // 显示播放源选择器
+const adList = ref([])
+
+// 处理广告点击
+const handleAdClick = (ad) => {
+  console.log('Ad clicked:', ad)
+  // 在这里处理广告点击逻辑，例如跳转到指定页面
+}
 
 // 计算播放源名称列表
 const sourceNames = computed(() => {
@@ -316,6 +327,11 @@ onMounted(() => {
   height: 100vh;
   overflow: hidden;
   background-color: #000;
+}
+
+.slider-wrapper {
+  height: calc(100vh - 120rpx);
+  background: rebeccapurple;
 }
 
 .source-selector {

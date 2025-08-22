@@ -156,7 +156,7 @@ export default {
 <style scoped>
 .slider-container {
   width: 100%;
-  height: 40rpx; /* Increased touch area */
+  height: 24rpx; /* Increased touch area */
   display: flex;
   align-items: center;
 }
