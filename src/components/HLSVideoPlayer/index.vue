@@ -1,23 +1,35 @@
 <!-- eslint-disable -->
 <template>
-  <view
-    class="player-wrapper"
-    :id="videoWrapperId"
-    :randomNum="randomNum"
-    :change:randomNum="hlsVideoPlayer.randomNumChange"
-    :viewportProps="viewportProps"
-    :change:viewportProps="hlsVideoPlayer.viewportChange"
-    :videoSrc="videoSrc"
-    :change:videoSrc="hlsVideoPlayer.initVideoPlayer"
-    :command="eventCommand"
-    :change:command="hlsVideoPlayer.triggerCommand"
-    :func="renderFunc"
-    :change:func="hlsVideoPlayer.triggerFunc"
-  />
+  <view class="player-container">
+    <view
+      class="player-wrapper"
+      :id="videoWrapperId"
+      :randomNum="randomNum"
+      :change:randomNum="hlsVideoPlayer.randomNumChange"
+      :viewportProps="viewportProps"
+      :change:viewportProps="hlsVideoPlayer.viewportChange"
+      :videoSrc="videoSrc"
+      :change:videoSrc="hlsVideoPlayer.initVideoPlayer"
+      :command="eventCommand"
+      :change:command="hlsVideoPlayer.triggerCommand"
+      :func="renderFunc"
+      :change:func="hlsVideoPlayer.triggerFunc"
+    />
+    <LoadingSpinner 
+      :visible="isLoading"
+      :text="loadingText"
+      size="medium"
+    />
+  </view>
 </template>
 
 <script>
+import LoadingSpinner from '../LoadingSpinner/index.vue'
+
 export default {
+  components: {
+    LoadingSpinner
+  },
   props: {
     src: {
       type: String,
@@ -64,6 +76,9 @@ export default {
       duration: 0,
       playing: false,
       buffered: 0,
+      // 加载状态
+      isLoading: false,
+      loadingText: '加载中...',
     }
   },
   watch: {
@@ -71,6 +86,8 @@ export default {
     src: {
       handler(val) {
         if (!val) return
+        this.isLoading = true
+        this.loadingText = '正在加载视频...'
         setTimeout(() => {
           this.videoSrc = val
         }, 0)
@@ -98,6 +115,26 @@ export default {
   methods: {
     // 传递事件指令给父组件
     eventEmit({ event, data }) {
+      // 处理加载状态
+      switch(event) {
+        case 'waiting':
+        case 'stalled':
+          this.isLoading = true
+          this.loadingText = '缓冲中...'
+          break
+        case 'canplay':
+        case 'playing':
+        case 'canplaythrough':
+          this.isLoading = false
+          break
+        case 'loadstart':
+          this.isLoading = true
+          this.loadingText = '正在加载...'
+          break
+        case 'error':
+          this.isLoading = false
+          break
+      }
       this.$emit(event, data)
     },
     // 修改view视图层的data数据
@@ -300,6 +337,34 @@ export default {
       this.videoEl.removeEventListener('error', errorHandler)
       this.videoEl.addEventListener('error', errorHandler)
 
+      // 等待数据事件监听（缓冲中）
+      const waitingHandler = () => {
+        this.$ownerInstance.callMethod('eventEmit', { event: 'waiting' })
+      }
+      this.videoEl.removeEventListener('waiting', waitingHandler)
+      this.videoEl.addEventListener('waiting', waitingHandler)
+
+      // 加载停滞事件监听
+      const stalledHandler = () => {
+        this.$ownerInstance.callMethod('eventEmit', { event: 'stalled' })
+      }
+      this.videoEl.removeEventListener('stalled', stalledHandler)
+      this.videoEl.addEventListener('stalled', stalledHandler)
+
+      // 开始加载事件监听
+      const loadstartHandler = () => {
+        this.$ownerInstance.callMethod('eventEmit', { event: 'loadstart' })
+      }
+      this.videoEl.removeEventListener('loadstart', loadstartHandler)
+      this.videoEl.addEventListener('loadstart', loadstartHandler)
+
+      // 可以播放完整视频事件监听
+      const canPlayThroughHandler = () => {
+        this.$ownerInstance.callMethod('eventEmit', { event: 'canplaythrough' })
+      }
+      this.videoEl.removeEventListener('canplaythrough', canPlayThroughHandler)
+      this.videoEl.addEventListener('canplaythrough', canPlayThroughHandler)
+
       // loadedmetadata 事件监听
       const loadedMetadataHandler = () => {
         this.$ownerInstance.callMethod('eventEmit', { event: 'loadedmetadata' })
@@ -478,6 +543,12 @@ export default {
 </script>
 
 <style scoped>
+.player-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
 .player-wrapper {
   overflow: hidden;
   height: 100%;
