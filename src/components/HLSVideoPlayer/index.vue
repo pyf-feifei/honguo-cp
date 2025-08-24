@@ -15,11 +15,7 @@
       :func="renderFunc"
       :change:func="hlsVideoPlayer.triggerFunc"
     />
-    <LoadingSpinner 
-      :visible="isLoading"
-      :text="loadingText"
-      size="medium"
-    />
+    <LoadingSpinner :visible="isLoading" :text="loadingText" size="medium" />
   </view>
 </template>
 
@@ -28,7 +24,7 @@ import LoadingSpinner from '../LoadingSpinner/index.vue'
 
 export default {
   components: {
-    LoadingSpinner
+    LoadingSpinner,
   },
   props: {
     src: {
@@ -116,7 +112,7 @@ export default {
     // 传递事件指令给父组件
     eventEmit({ event, data }) {
       // 处理加载状态
-      switch(event) {
+      switch (event) {
         case 'waiting':
         case 'stalled':
           this.isLoading = true
@@ -246,19 +242,34 @@ export default {
       videoEl.muted = muted
       videoEl.playbackRate = playbackRate
       videoEl.id = this.playerId
-      // videoEl.setAttribute('x5-video-player-type', 'h5')
-      videoEl.setAttribute('preload', 'metadata')
+      videoEl.setAttribute('x5-video-player-type', 'h5')
+      videoEl.setAttribute('preload', 'none')
       videoEl.setAttribute('playsinline', true)
       videoEl.setAttribute('webkit-playsinline', true)
+      videoEl.setAttribute('x5-playsinline', true)
       videoEl.setAttribute('crossorigin', 'anonymous')
       videoEl.setAttribute('controlslist', 'nodownload')
       videoEl.setAttribute('disablePictureInPicture', true)
+      videoEl.setAttribute('x5-video-orientation', 'portrait')
+      videoEl.setAttribute('show-play-btn', 'false')
+      videoEl.setAttribute('x5-show-center-play-btn', 'false')
+      videoEl.style.visibility = 'hidden'
       videoEl.style.objectFit = objectFit
       poster && (videoEl.poster = poster)
       videoEl.style.width = '100%'
       videoEl.style.height = '100%'
       // 插入视频元素
       document.getElementById(this.wrapperId).appendChild(videoEl)
+
+      // 添加loadeddata事件监听器，在视频数据加载完成后显示视频元素
+      const loadedDataHandler = () => {
+        // 延迟显示视频元素，确保默认播放图标不会显示
+        setTimeout(() => {
+          videoEl.style.visibility = 'visible'
+        }, 100)
+      }
+
+      videoEl.addEventListener('loadeddata', loadedDataHandler, { once: true })
 
       if (!this.isApple()) {
         this.initHlsPlayer(src)
@@ -553,5 +564,55 @@ export default {
   overflow: hidden;
   height: 100%;
   padding: 0;
+}
+
+/* 隐藏视频元素的默认播放按钮 */
+.player-wrapper video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
+
+/* 隐藏视频控件面板 */
+.player-wrapper video::-webkit-media-controls {
+  display: none !important;
+}
+
+/* 隐藏视频播放按钮 */
+.player-wrapper video::-webkit-media-controls-play-button {
+  display: none !important;
+}
+
+/* 隐藏视频全屏按钮 */
+.player-wrapper video::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
+
+/* 隐藏视频时间线 */
+.player-wrapper video::-webkit-media-controls-timeline {
+  display: none !important;
+}
+
+/* 隐藏视频音量控制 */
+.player-wrapper video::-webkit-media-controls-volume-slider {
+  display: none !important;
+}
+
+/* 隐藏视频静音按钮 */
+.player-wrapper video::-webkit-media-controls-mute-button {
+  display: none !important;
+}
+
+/* 隐藏视频中心播放按钮 */
+.player-wrapper video::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+}
+
+/* 隐藏视频海报图像 */
+.player-wrapper video::poster {
+  display: none !important;
+}
+
+/* 设置视频背景为透明 */
+.player-wrapper video {
+  background: transparent !important;
 }
 </style>
