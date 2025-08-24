@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cheerio": "^1.1.2",
     "hls.js": "^1.6.5",
     "lodash": "^4.17.21",
     "pinia": "^3.0.2",

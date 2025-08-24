@@ -10,7 +10,7 @@
     {
       "path": "src/pages/theater/index",
       "style": {
-        "navigationBarTitleText": "剧场"
+        "navigationStyle": "custom"
       }
     },
     {
