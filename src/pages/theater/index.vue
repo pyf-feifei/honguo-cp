@@ -232,7 +232,7 @@ export default {
             books.push({
               bookId: link,
               bookName: title,
-              coverWap: '/static/logo.png', // 占位图片
+              coverWap: '/static/theater/defaultCover.png', // 占位图片
               introduction: `${source}`,
               totalChapterNum: '', // HTML中未提供
               followCount: Math.floor(Math.random() * 90000 + 10000), // 随机生成1万-10万的数据

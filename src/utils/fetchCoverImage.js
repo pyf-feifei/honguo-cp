@@ -12,13 +12,6 @@ export async function batchFetchCoverImages(books) {
 
   console.log('开始批量获取封面图片，书籍数量:', books.length)
 
-  // 使用旺旺短剧API
-  const apiSite = API_SITES.wwzy
-  if (!apiSite) {
-    console.error('未找到旺旺短剧API配置')
-    return books
-  }
-
   const results = []
 
   // 为了避免过多并发请求，我们分批处理
@@ -27,48 +20,17 @@ export async function batchFetchCoverImages(books) {
     const batch = books.slice(i, i + batchSize)
     const batchPromises = batch.map(async (book) => {
       try {
-        // 搜索API
-        const searchUrl = `${apiSite.api}?ac=videolist&wd=${encodeURIComponent(
-          book.bookName
-        )}`
-        console.log('搜索短剧:', book.bookName, 'URL:', searchUrl)
+        // 使用 fetchCoverImage 函数获取封面图片
+        const coverUrl = await fetchCoverImage(book.bookName)
 
-        const response = await new Promise((resolve, reject) => {
-          uni.request({
-            url: searchUrl,
-            method: 'GET',
-            success: (res) => {
-              resolve(res)
-            },
-            fail: (err) => {
-              reject(err)
-            },
-          })
-        })
-
-        if (response.statusCode !== 200) {
-          throw new Error(`HTTP error! status: ${response.statusCode}`)
-        }
-
-        const data = response.data
-
-        if (data && data.list && data.list.length > 0) {
-          // 取第一个匹配结果的封面
-          const firstResult = data.list[0]
-          const coverUrl = firstResult.vod_pic || firstResult.pic || ''
-
+        if (coverUrl) {
           console.log('找到封面图片:', book.bookName, 'URL:', coverUrl)
-          console.log('vod_pic字段值:', firstResult.vod_pic)
-          console.log('pic字段值:', firstResult.pic)
-          console.log('原始数据:', firstResult)
-
           return {
             ...book,
             coverWap: coverUrl,
           }
         } else {
           console.log('未找到封面图片:', book.bookName)
-          console.log('API返回数据:', data)
           return book
         }
       } catch (error) {
@@ -109,12 +71,13 @@ export async function fetchCoverImage(bookName) {
     return ''
   }
 
-  try {
+  // 尝试获取封面图片的函数
+  const tryFetchCover = async (searchName) => {
     // 搜索API
     const searchUrl = `${apiSite.api}?ac=videolist&wd=${encodeURIComponent(
-      bookName
+      searchName
     )}`
-    console.log('搜索短剧:', bookName, 'URL:', searchUrl)
+    console.log('搜索短剧:', searchName, 'URL:', searchUrl)
 
     const response = await new Promise((resolve, reject) => {
       uni.request({
@@ -140,14 +103,49 @@ export async function fetchCoverImage(bookName) {
       const firstResult = data.list[0]
       const coverUrl = firstResult.vod_pic || firstResult.pic || ''
 
-      console.log('找到封面图片:', bookName, 'URL:', coverUrl)
+      console.log('找到封面图片:', searchName, 'URL:', coverUrl)
+      console.log('vod_pic字段值:', firstResult.vod_pic)
+      console.log('pic字段值:', firstResult.pic)
       console.log('原始数据:', firstResult)
       return coverUrl
     } else {
-      console.log('未找到封面图片:', bookName)
+      console.log('未找到封面图片:', searchName)
       console.log('API返回数据:', data)
-      return ''
+      return null
     }
+  }
+
+  try {
+    // 首先尝试使用完整的书籍名称查询
+    let coverUrl = await tryFetchCover(bookName)
+    if (coverUrl) {
+      return coverUrl
+    }
+
+    // 如果完整名称查询不到，检查是否包含 "&" 或 "＆"
+    if (bookName.includes('&') || bookName.includes('＆')) {
+      // 拆分书籍名称
+      const separator = bookName.includes('＆') ? '＆' : '&'
+      const nameParts = bookName.split(separator).map((part) => part.trim())
+
+      console.log('拆分书籍名称:', nameParts)
+
+      // 依次尝试每个部分
+      for (const part of nameParts) {
+        if (part) {
+          // 确保部分不为空
+          coverUrl = await tryFetchCover(part)
+          if (coverUrl) {
+            console.log('使用拆分后的名称找到封面图片:', part, 'URL:', coverUrl)
+            return coverUrl
+          }
+        }
+      }
+    }
+
+    // 如果所有尝试都失败了，返回空字符串
+    console.log('所有尝试都失败了，未找到封面图片:', bookName)
+    return ''
   } catch (error) {
     console.error('获取封面图片失败:', bookName, error)
     return ''
