@@ -30,8 +30,8 @@
     </view>
 
     <!-- 可滚动的内容区域 -->
-    <scroll-view 
-      scroll-y 
+    <scroll-view
+      scroll-y
       class="scroll-content"
       @scrolltolower="onLoadMore"
       :lower-threshold="100"
@@ -41,7 +41,7 @@
         <u-loading-icon size="30" color="#ff4d4f"></u-loading-icon>
         <text class="loading-text">正在加载短剧列表...</text>
       </view>
-      
+
       <!-- 错误状态 -->
       <view v-else-if="loadError" class="error-container">
         <text class="error-icon">⚠️</text>
@@ -50,16 +50,23 @@
           <text class="retry-text">点击重试</text>
         </view>
       </view>
-      
+
       <!-- 空数据状态 -->
-      <view v-else-if="!loading && filteredBooks.length === 0" class="empty-container">
+      <view
+        v-else-if="!loading && filteredBooks.length === 0"
+        class="empty-container"
+      >
         <text class="empty-icon">📺</text>
-        <text class="empty-text">{{ searchKeyword ? `没有找到“${searchKeyword}”相关的短剧` : '暂无短剧数据' }}</text>
+        <text class="empty-text">{{
+          searchKeyword
+            ? `没有找到“${searchKeyword}”相关的短剧`
+            : '暂无短剧数据'
+        }}</text>
         <view v-if="searchKeyword" class="retry-btn" @click="onClearSearch">
           <text class="retry-text">查看全部短剧</text>
         </view>
       </view>
-      
+
       <!-- 书籍列表 -->
       <view
         v-else
@@ -69,7 +76,11 @@
         @click="goToPlayer(book)"
       >
         <view class="cover-container">
-          <image :src="book.coverWap" class="cover" mode="aspectFill" />
+          <image
+            :src="book.coverWap || '/static/logo.png'"
+            class="cover"
+            mode="aspectFill"
+          />
           <text class="chapter-count" v-if="book.totalChapterNum"
             >全{{ book.totalChapterNum }}集</text
           >
@@ -106,9 +117,12 @@
           <text class="intro">{{ book.introduction }}</text>
         </view>
       </view>
-      
+
       <!-- 加载更多状态 -->
-      <view v-if="!loading && filteredBooks.length > 0" class="load-more-container">
+      <view
+        v-if="!loading && filteredBooks.length > 0"
+        class="load-more-container"
+      >
         <view v-if="loadingMore" class="loading-more">
           <u-loading-icon size="24" color="#ff4d4f"></u-loading-icon>
           <text class="loading-more-text">正在加载更多...</text>
@@ -123,6 +137,7 @@
 
 <script>
 import * as cheerio from 'cheerio'
+import { batchFetchCoverImages } from '../../utils/fetchCoverImage.js'
 
 export default {
   data() {
@@ -143,6 +158,7 @@ export default {
       loadingMore: false, // 加载更多状态
       hasMore: true, // 是否还有更多数据
       currentSearchKeyword: '', // 当前搜索关键词（用于分页一致性）
+      fetchingCovers: false, // 是否正在获取封面图片
     }
   },
   computed: {
@@ -190,10 +206,12 @@ export default {
         // 加载更多时使用loadingMore
         this.loadingMore = true
       }
-      
+
       // 构建搜索URL
       const searchTerm = this.currentSearchKeyword || '%20'
-      const url = `https://panhub.fun/s/${encodeURIComponent(searchTerm)}-${page}-1.html`
+      const url = `https://panhub.fun/s/${encodeURIComponent(
+        searchTerm
+      )}-${page}-1.html`
       uni.request({
         url: url,
         method: 'GET',
@@ -222,10 +240,10 @@ export default {
               bookTypeThree: [],
             })
           })
-          
+
           // 处理书籍数据
           const processedBooks = this.processBooks(books)
-          
+
           if (isLoadMore) {
             // 加载更多：追加数据
             if (processedBooks.length > 0) {
@@ -242,7 +260,10 @@ export default {
             // 新搜索时总是更新页码为1
             this.currentPage = 1
           }
-          
+
+          // 获取封面图片
+          this.fetchBookCovers()
+
           // 判断是否还有更多数据
           // 如果返回的数据少于10条（一般每页的预期数量），说明可能没有更多了
           if (processedBooks.length < 10) {
@@ -275,7 +296,7 @@ export default {
             uni.showToast({
               title: '加载失败',
               icon: 'none',
-              duration: 2000
+              duration: 2000,
             })
           }
         },
@@ -344,13 +365,13 @@ export default {
       if (this.searchTimer) {
         clearTimeout(this.searchTimer)
       }
-      
+
       // 如果搜索框为空，立即加载全部数据
       if (!this.searchKeyword) {
         this.fetchData(1, '')
         return
       }
-      
+
       // 设置500ms防抖
       this.searchTimer = setTimeout(() => {
         this.fetchData(1, this.searchKeyword)
@@ -378,12 +399,42 @@ export default {
       if (this.loadingMore || !this.hasMore || this.loading) {
         return
       }
-      
+
       // 计算下一页页码
       const nextPage = this.currentPage + 1
-      
+
       // 调用fetchData加载下一页
       this.fetchData(nextPage, this.currentSearchKeyword, true)
+    },
+    async fetchBookCovers() {
+      if (this.fetchingCovers || this.books.length === 0) {
+        return
+      }
+
+      this.fetchingCovers = true
+      console.log('开始获取书籍封面图片')
+
+      try {
+        // 使用批量获取封面图片的函数
+        const booksWithCovers = await batchFetchCoverImages(this.books)
+
+        // 更新书籍列表
+        this.books = booksWithCovers
+        console.log('获取封面图片完成')
+
+        // 打印更新后的书籍列表
+        console.log(
+          '更新后的书籍列表:',
+          this.books.map((book) => ({
+            bookName: book.bookName,
+            coverWap: book.coverWap,
+          }))
+        )
+      } catch (error) {
+        console.error('获取封面图片失败:', error)
+      } finally {
+        this.fetchingCovers = false
+      }
     },
   },
 }
@@ -405,22 +456,16 @@ export default {
   z-index: 100;
   background-color: #fff;
   padding: 10rpx 20rpx; /* 减少上下内边距 */
-  padding-top: calc(
-    v-bind(statusBarHeight) * 1px + 10rpx
-  ); /* 添加状态栏高度 */
+  padding-top: calc(v-bind(statusBarHeight) * 1px + 10rpx); /* 添加状态栏高度 */
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
   width: 100%;
   box-sizing: border-box;
 }
 .scroll-content {
   flex: 1;
-  margin-top: calc(
-    v-bind(headerHeight) * 1px
-  ); /* 为固定头部留出空间 */
+  margin-top: calc(v-bind(headerHeight) * 1px); /* 为固定头部留出空间 */
   padding: 10rpx 0 20rpx 0; /* 减少顶部padding */
-  height: calc(
-    100vh - v-bind(headerHeight) * 1px
-  ); /* 减去头部高度 */
+  height: calc(100vh - v-bind(headerHeight) * 1px); /* 减去头部高度 */
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -428,17 +473,17 @@ export default {
 .search-box {
   margin-bottom: 10rpx; /* 减少底部间距 */
   padding: 0;
-  
+
   ::v-deep .u-search {
     height: 60rpx !important; /* 减少搜索框高度 */
     padding: 0 20rpx !important;
   }
-  
+
   ::v-deep .u-search__content {
     height: 60rpx !important;
     line-height: 60rpx !important;
   }
-  
+
   ::v-deep .u-search__content__input {
     font-size: 28rpx !important;
   }
