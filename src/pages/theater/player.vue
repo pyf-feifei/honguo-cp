@@ -202,7 +202,15 @@ const fetchVodList = () => {
         // console.log(`${site.name}res`, res)
         console.log(`${site.name}`, res.data)
         if (res.data?.list?.length) {
-          const vod = res.data.list[0] // 处理第一个结果
+          // 筛选出 type_name 或 vod_class 为短剧的数据
+          const shortDramas = res.data.list.filter(
+            (item) => item.type_name === '短剧' || item.vod_class === '短剧'
+          )
+
+          // 如果没有找到短剧，使用原始列表
+          const targetList =
+            shortDramas.length > 0 ? shortDramas : res.data.list
+          const vod = targetList[0] // 处理第一个结果
           const separator =
             vod.vod_play_note && vod.vod_play_note.trim() !== ''
               ? vod.vod_play_note
