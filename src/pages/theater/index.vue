@@ -2,17 +2,26 @@
   <view class="container">
     <!-- 固定在顶部的搜索框和筛选项 -->
     <view class="fixed-header">
-      <!-- 顶部搜索框 -->
-      <view class="search-box">
-        <u-search
-          v-model="searchKeyword"
-          placeholder="搜索短剧"
-          :show-action="false"
-          @search="onSearch"
-          @custom="onSearch"
-          @clear="onClearSearch"
-          @change="onSearchChange"
-        ></u-search>
+      <!-- 顶部搜索框和数据源选择器 -->
+      <view class="search-section">
+        <view class="search-box">
+          <u-search
+            v-model="searchKeyword"
+            placeholder="搜索短剧"
+            :show-action="false"
+            @search="onSearch"
+            @custom="onSearch"
+            @clear="onClearSearch"
+            @change="onSearchChange"
+          ></u-search>
+        </view>
+
+        <!-- 数据源选择器 -->
+        <DataSourceSelector
+          v-model="currentDataSource"
+          @change="onDataSourceChange"
+          class="data-source-selector"
+        />
       </view>
 
       <!-- 顶部筛选项，使用自定义样式替代u-tabs -->
@@ -35,6 +44,12 @@
       class="scroll-content"
       @scrolltolower="onLoadMore"
       :lower-threshold="100"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh"
+      refresher-threshold="45"
+      refresher-default-style="black"
+      refresher-background="#f5f5f5"
     >
       <!-- 加载状态 -->
       <view v-if="loading" class="loading-container">
@@ -138,8 +153,14 @@
 <script>
 import * as cheerio from 'cheerio'
 import { batchFetchCoverImages } from '../../utils/fetchCoverImage.js'
+import { dataSourceManager } from '../../api/dataSources.js'
+import { DataParser, dataCache } from '../../utils/dataParser.js'
+import DataSourceSelector from '../../components/DataSourceSelector/index.vue'
 
 export default {
+  components: {
+    DataSourceSelector,
+  },
   data() {
     return {
       books: [],
@@ -159,6 +180,11 @@ export default {
       hasMore: true, // 是否还有更多数据
       currentSearchKeyword: '', // 当前搜索关键词（用于分页一致性）
       fetchingCovers: false, // 是否正在获取封面图片
+      currentDataSource: 'djzyw', // 当前数据源
+      currentRequest: null, // @@@当前请求对象 - 用于取消请求
+      requestId: 0, // @@@请求ID - 用于标识当前请求
+      refreshing: false, // 下拉刷新状态
+      coverRequestId: 0, // @@@封面请求ID - 用于取消封面请求
     }
   },
   computed: {
@@ -193,7 +219,18 @@ export default {
     this.fetchData()
   },
   methods: {
-    fetchData(page = 1, keyword = '', isLoadMore = false) {
+    // @@@重构数据获取方法 - 使用数据源管理器
+    async fetchData(page = 1, keyword = '', isLoadMore = false) {
+      // @@@参数验证和类型转换 - 确保page是数字
+      const pageNum = typeof page === 'number' ? page : parseInt(page) || 1
+      const searchKeyword =
+        typeof keyword === 'string'
+          ? keyword
+          : keyword || this.searchKeyword || ''
+
+      // @@@生成新的请求ID
+      const currentRequestId = ++this.requestId
+
       // 如果是新搜索，重置分页状态
       if (!isLoadMore) {
         this.loading = true
@@ -201,145 +238,111 @@ export default {
         this.errorMessage = ''
         this.currentPage = 1
         this.hasMore = true
-        this.currentSearchKeyword = keyword || this.searchKeyword || ''
+        this.currentSearchKeyword = searchKeyword
       } else {
         // 加载更多时使用loadingMore
         this.loadingMore = true
       }
 
-      // 构建搜索URL
-      const searchTerm = this.currentSearchKeyword || '%20'
-      const url = `https://panhub.fun/s/${encodeURIComponent(
-        searchTerm
-      )}-${page}-1.html`
-      uni.request({
-        url: url,
-        method: 'GET',
-        success: (res) => {
-          if (!isLoadMore) {
-            this.loading = false
-          } else {
-            this.loadingMore = false
-          }
-          const html = res.data
-          const $ = cheerio.load(html)
-          const books = []
-          $('.listBox .left .box .list .item').each((i, el) => {
-            const title = $(el).find('.title').text().trim()
-            const link = $(el).find('.title').attr('href')
-            const time = $(el).find('.type.time').text().trim()
-            const source = $(el).find('.type span').text().trim()
-            books.push({
-              bookId: link,
-              bookName: title,
-              coverWap: '/static/theater/defaultCover.png', // 占位图片
-              introduction: `${source}`,
-              totalChapterNum: '', // HTML中未提供
-              followCount: Math.floor(Math.random() * 90000 + 10000), // 随机生成1万-10万的数据
-              statusDesc: time,
-              bookTypeThree: [],
-            })
-          })
+      try {
+        // 检查缓存
+        const cacheKey = dataCache.generateKey(
+          this.currentDataSource,
+          this.currentSearchKeyword,
+          pageNum
+        )
+        const cachedData = dataCache.get(cacheKey)
 
-          // 处理书籍数据
-          const processedBooks = this.processBooks(books)
+        if (cachedData && !isLoadMore) {
+          this.handleDataSuccess(cachedData, isLoadMore, pageNum)
+          return
+        }
 
-          if (isLoadMore) {
-            // 加载更多：追加数据
-            if (processedBooks.length > 0) {
-              this.books = [...this.books, ...processedBooks]
-              // 只有成功加载到数据时才更新页码
-              this.currentPage = page
-            } else {
-              // 没有数据，不更新页码，标记为无更多数据
-              this.hasMore = false
-            }
-          } else {
-            // 新搜索：替换数据
-            this.books = processedBooks
-            // 新搜索时总是更新页码为1
-            this.currentPage = 1
-          }
-
-          // 获取封面图片
-          this.fetchBookCovers()
-
-          // 判断是否还有更多数据
-          // 如果返回的数据少于10条（一般每页的预期数量），说明可能没有更多了
-          if (processedBooks.length < 10) {
-            this.hasMore = false
-          } else if (!isLoadMore) {
-            // 新搜索时，如果有数据则认为可能还有更多
-            this.hasMore = true
-          }
-          // 从返回的数据中提取筛选条件
-          const filters = [{ id: 0, name: '全部' }]
-          $('.screen .box a').each((i, el) => {
-            const name = $(el).text().trim()
-            if (name === '短剧') {
-              filters.push({
-                id: i,
-                name: name,
-              })
-            }
-          })
-          this.filters = filters
-        },
-        fail: (err) => {
-          if (!isLoadMore) {
-            this.loading = false
-            this.loadError = true
-            this.errorMessage = '网络请求失败，请检查网络连接'
-          } else {
-            this.loadingMore = false
-            // 加载更多失败时，只显示轻提示
-            uni.showToast({
-              title: '加载失败',
-              icon: 'none',
-              duration: 2000,
-            })
-          }
-        },
-        complete: () => {
-          // 确保在任何情况下都关闭加载状态
-          setTimeout(() => {
-            this.loading = false
-            this.loadingMore = false
-          }, 300)
-        },
-      })
-    },
-    processBooks(books) {
-      return books.map((book) => {
-        const fullTitle = book.bookName
-        let bookName = fullTitle
-        let totalChapterNum = ''
-        let actors = []
-
-        const match = fullTitle.match(
-          /^(?:\d+-\s*)?(.*?)\s*[（(](\d+)\s*集[)）](.*)$/
+        // 使用数据源管理器获取数据
+        const result = await dataSourceManager.fetchData(
+          this.currentSearchKeyword,
+          pageNum
         )
 
-        if (match) {
-          bookName = match[1].trim()
-          totalChapterNum = match[2].trim()
-          const actorsString = match[3].trim()
-          if (actorsString) {
-            actors = actorsString
-              .replace(/[＆&]/g, ' ')
-              .split(/\s+/)
-              .map((actor) => actor.trim())
-              .filter(Boolean)
-          }
+        // @@@检查请求是否已被取消
+        if (currentRequestId !== this.requestId) {
+          return
         }
 
-        return {
-          ...book,
-          bookName,
-          totalChapterNum,
-          actors,
+        // 缓存数据
+        dataCache.set(cacheKey, result)
+
+        this.handleDataSuccess(result, isLoadMore, pageNum)
+      } catch (error) {
+        // @@@检查请求是否已被取消
+        if (currentRequestId !== this.requestId) {
+          return
         }
-      })
+
+        this.handleDataError(error, isLoadMore)
+      }
+    },
+
+    // @@@处理数据成功 - 统一数据处理逻辑
+    handleDataSuccess(result, isLoadMore, page) {
+      if (!isLoadMore) {
+        this.loading = false
+      } else {
+        this.loadingMore = false
+      }
+
+      const processedBooks = DataParser.filterValidBooks(result.books)
+
+      if (isLoadMore) {
+        // 加载更多：追加数据
+        if (processedBooks.length > 0) {
+          this.books = [...this.books, ...processedBooks]
+          this.currentPage = page
+        } else {
+          this.hasMore = false
+        }
+      } else {
+        // 新搜索：替换数据
+        this.books = processedBooks
+        this.currentPage = 1
+      }
+
+      // 更新分页状态
+      this.hasMore = result.hasMore
+
+      // 获取封面图片
+      this.fetchBookCovers()
+
+      // 更新筛选条件（保持原有逻辑）
+      this.updateFilters()
+    },
+
+    // @@@处理数据错误 - 统一错误处理逻辑
+    handleDataError(error, isLoadMore) {
+      console.error('数据获取失败:', error)
+
+      if (!isLoadMore) {
+        this.loading = false
+        this.loadError = true
+        this.errorMessage = '网络请求失败，请检查网络连接'
+      } else {
+        this.loadingMore = false
+        uni.showToast({
+          title: '加载失败',
+          icon: 'none',
+          duration: 2000,
+        })
+      }
+    },
+
+    // @@@更新筛选条件 - 保持原有筛选逻辑
+    updateFilters() {
+      const filters = [{ id: 0, name: '全部' }]
+      // 根据当前数据源更新筛选条件
+      if (this.currentDataSource === 'panhub') {
+        filters.push({ id: 1, name: '短剧' })
+      }
+      this.filters = filters
     },
     getTypeName(id) {
       return this.bookTypeMap[id] || ''
@@ -352,12 +355,13 @@ export default {
         // 筛选功能通过计算属性filteredBooks实现
       }
     },
-    onSearch() {
+    onSearch(event) {
       // 立即触发搜索请求（回车或点击搜索按钮时）
       if (this.searchTimer) {
         clearTimeout(this.searchTimer)
         this.searchTimer = null
       }
+      // @@@修复参数传递 - 确保传递正确的参数类型
       this.fetchData(1, this.searchKeyword)
     },
     onSearchChange() {
@@ -393,6 +397,34 @@ export default {
       this.searchKeyword = ''
       this.fetchData(1, '')
     },
+
+    // @@@数据源切换处理 - 处理数据源切换事件
+    async onDataSourceChange(newSource) {
+      // @@@取消当前请求 - 通过增加请求ID来取消
+      this.requestId++
+
+      // @@@停止正在进行的封面图片获取请求
+      this.coverRequestId++
+      this.fetchingCovers = false
+
+      // @@@清除封面图片缓存
+      const { coverCache } = await import('../../utils/coverCache.js')
+      coverCache.clearAll()
+
+      // 更新数据源
+      this.currentDataSource = newSource
+
+      // @@@确保数据源管理器也切换到新数据源
+      dataSourceManager.switchSource(newSource)
+
+      // 清空当前数据
+      this.books = []
+      this.hasMore = true
+      this.currentPage = 1
+
+      // 重新获取数据
+      this.fetchData(1, this.currentSearchKeyword)
+    },
     onLoadMore() {
       // 加载更多
       // 检查：正在加载中、没有更多数据、正在初始加载
@@ -406,34 +438,89 @@ export default {
       // 调用fetchData加载下一页
       this.fetchData(nextPage, this.currentSearchKeyword, true)
     },
+
+    // @@@下拉刷新处理
+    async onRefresh() {
+      // 检查是否正在加载中，避免冲突
+      if (this.loading || this.loadingMore) {
+        this.refreshing = false
+        return
+      }
+
+      // 设置刷新状态
+      this.refreshing = true
+
+      try {
+        // @@@停止正在进行的封面图片获取请求
+        this.coverRequestId++
+        this.fetchingCovers = false
+
+        // @@@清除封面图片缓存
+        const { coverCache } = await import('../../utils/coverCache.js')
+        coverCache.clearAll()
+
+        // 清空缓存，强制重新获取数据
+        dataCache.clear()
+
+        // 重置分页状态
+        this.currentPage = 1
+        this.hasMore = true
+
+        // 重新获取第一页数据
+        await this.fetchData(1, this.currentSearchKeyword, false)
+
+        // 显示刷新成功提示
+        uni.showToast({
+          title: '刷新成功',
+          icon: 'success',
+          duration: 1500,
+        })
+      } catch (error) {
+        console.error('下拉刷新失败:', error)
+
+        // 显示刷新失败提示
+        uni.showToast({
+          title: '刷新失败',
+          icon: 'error',
+          duration: 2000,
+        })
+      } finally {
+        // 结束刷新状态
+        this.refreshing = false
+      }
+    },
     async fetchBookCovers() {
       if (this.fetchingCovers || this.books.length === 0) {
         return
       }
 
+      // @@@生成封面请求ID
+      const currentCoverRequestId = ++this.coverRequestId
       this.fetchingCovers = true
-      console.log('开始获取书籍封面图片')
 
       try {
-        // 使用批量获取封面图片的函数
-        const booksWithCovers = await batchFetchCoverImages(this.books)
+        // @@@使用实时更新的批量获取封面图片函数
+        await batchFetchCoverImages(this.books, (updatedBook, index) => {
+          // @@@检查请求是否已被取消
+          if (currentCoverRequestId !== this.coverRequestId) {
+            return
+          }
 
-        // 更新书籍列表
-        this.books = booksWithCovers
-        console.log('获取封面图片完成')
+          // @@@立即更新单个书籍的封面图片
+          this.$set(this.books, index, updatedBook)
+        })
 
-        // 打印更新后的书籍列表
-        console.log(
-          '更新后的书籍列表:',
-          this.books.map((book) => ({
-            bookName: book.bookName,
-            coverWap: book.coverWap,
-          }))
-        )
+        // @@@检查请求是否已被取消
+        if (currentCoverRequestId !== this.coverRequestId) {
+          return
+        }
       } catch (error) {
         console.error('获取封面图片失败:', error)
       } finally {
-        this.fetchingCovers = false
+        // @@@只有在请求ID匹配时才重置状态
+        if (currentCoverRequestId === this.coverRequestId) {
+          this.fetchingCovers = false
+        }
       }
     },
   },
@@ -470,8 +557,15 @@ export default {
   box-sizing: border-box;
   overflow-x: hidden;
 }
+.search-section {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 10rpx;
+}
+
 .search-box {
-  margin-bottom: 10rpx; /* 减少底部间距 */
+  flex: 1;
   padding: 0;
 
   ::v-deep .u-search {
@@ -487,6 +581,10 @@ export default {
   ::v-deep .u-search__content__input {
     font-size: 28rpx !important;
   }
+}
+
+.data-source-selector {
+  flex-shrink: 0;
 }
 .filters {
   display: flex;
@@ -732,5 +830,11 @@ export default {
   font-size: 26rpx;
   color: #999;
   text-align: center;
+}
+
+// 下拉刷新样式优化
+.scroll-content {
+  // 确保下拉刷新区域有足够的空间
+  padding-top: 0;
 }
 </style>

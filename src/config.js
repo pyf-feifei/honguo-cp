@@ -1,3 +1,21 @@
+// @@@搜索数据源配置 - 短剧搜索数据源
+export const SEARCH_DATA_SOURCES = {
+  djzyw: {
+    name: '短剧资源网',
+    baseUrl: 'https://www.djzyw.com/duanju.php',
+    priority: 1, // 优先级：1为最高
+    enabled: true,
+    parser: 'djzyw',
+  },
+  panhub: {
+    name: 'PanHub',
+    baseUrl: 'https://panhub.fun/s',
+    priority: 2,
+    enabled: true,
+    parser: 'panhub',
+  },
+}
+
 export const API_SITES = {
   dyttzy: {
     api: 'http://caiji.dyttzyapi.com/api.php/provide/vod',
